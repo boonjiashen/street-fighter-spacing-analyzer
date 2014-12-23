@@ -78,10 +78,10 @@ if __name__ == '__main__':
             break
         if ch == ord('1'):
             show_hsv = not show_hsv
-            print('HSV flow visualization is', ['off', 'on'][show_hsv])
+            print(('HSV flow visualization is', ['off', 'on'][show_hsv]))
         if ch == ord('2'):
             show_glitch = not show_glitch
             if show_glitch:
                 cur_glitch = img.copy()
-            print('glitch is', ['off', 'on'][show_glitch])
+            print(('glitch is', ['off', 'on'][show_glitch]))
     cv2.destroyAllWindows()
