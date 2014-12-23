@@ -1,13 +1,5 @@
-#!/usr/bin/env python
-
 import numpy as np
 import cv2
-
-help_message = '''
-USAGE: peopledetect.py <image_names> ...
-
-Press any key to continue, ESC to stop.
-'''
 
 def inside(r, q):
     rx, ry, rw, rh = r
@@ -23,25 +15,19 @@ def draw_detections(img, rects, thickness = 1):
 
 
 if __name__ == '__main__':
-    import sys
-    from glob import glob
-    import itertools as it
+    import argparse
 
-    print(help_message)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('filename')
+    args = parser.parse_args()
+
+    cap = cv2.VideoCapture(args.filename)
 
     hog = cv2.HOGDescriptor()
     hog.setSVMDetector( cv2.HOGDescriptor_getDefaultPeopleDetector() )
 
-    for fn in it.chain(*list(map(glob, sys.argv[1:]))):
-        print(fn, ' - ', end=' ')
-        try:
-            img = cv2.imread(fn)
-            if img is None:
-                print('Failed to load image file:', fn)
-                continue
-        except:
-            print('loading error')
-            continue
+    while(1):
+        ret, img = cap.read()
 
         found, w = hog.detectMultiScale(img, winStride=(8,8), padding=(32,32), scale=1.05)
         found_filtered = []
@@ -53,9 +39,9 @@ if __name__ == '__main__':
                 found_filtered.append(r)
         draw_detections(img, found)
         draw_detections(img, found_filtered, 3)
-        print('%d (%d) found' % (len(found_filtered), len(found)))
+        #print('%d (%d) found' % (len(found_filtered), len(found)))
         cv2.imshow('img', img)
-        ch = 0xFF & cv2.waitKey()
+        ch = 0xFF & cv2.waitKey(30)
         if ch == 27:
             break
     cv2.destroyAllWindows()
