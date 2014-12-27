@@ -14,11 +14,24 @@ WHITE = [255,255,255]   # sure FG
 
 
 def onmouse(event,x,y,flags,param):
+    global frame, p1_CG, p2_CG
 
-    if event == cv2.EVENT_LBUTTONUP:
-        radius = 2
-        cv2.circle(frame, (x, y), radius, BLACK, thickness=-1)
-        cv2.imshow(WIN, frame)
+    # Update CG of players
+    p1_trigger, p2_trigger = cv2.EVENT_LBUTTONUP, cv2.EVENT_RBUTTONUP
+    if event == p1_trigger:
+        p1_CG = (x, y)
+    elif event == p2_trigger:
+        p2_CG = (x, y)
+
+    # Update image
+    frame_copy = frame.copy()
+    radius = 2
+    if event in [p1_trigger, p2_trigger]:
+        if p1_CG:
+            cv2.circle(frame_copy, p1_CG, radius, BLUE, thickness=-1)
+        if p2_CG:
+            cv2.circle(frame_copy, p2_CG, radius, BLACK, thickness=-1)
+        cv2.imshow(WIN, frame_copy)
 
 
 def grab_frame(video_filename):
@@ -51,6 +64,8 @@ if __name__ == "__main__":
     for frame in grab_frame(args.input_filename):
 
         cv2.imshow(WIN, frame)
+
+        p1_CG, p2_CG = None, None
 
         # Do not progress until we get a ESC or 'n'
         while True:
