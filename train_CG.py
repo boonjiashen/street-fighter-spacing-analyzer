@@ -12,12 +12,23 @@ GREEN = [0,255,0]       # PR FG
 BLACK = [0,0,0]         # sure BG
 WHITE = [255,255,255]   # sure FG
 
+frame = None  # target frame of a Street Fighter 4 match
+p1_CG = None  # CG of player 1
+p2_CG = None  # CG of player 2
+rect_size = (100, 50)  # size of rectangle (height, width)
 
 def onmouse(event,x,y,flags,param):
+    "Update CG of players upon appropriate mouse click"
+
     global frame, p1_CG, p2_CG
 
-    # Update CG of players
+    # Define which button maps to which player
     p1_trigger, p2_trigger = cv2.EVENT_LBUTTONUP, cv2.EVENT_RBUTTONUP
+
+    # Define colors of players
+    p1_color, p2_color = BLUE, GREEN
+
+    # Update CG of players
     if event == p1_trigger:
         p1_CG = (x, y)
     elif event == p2_trigger:
@@ -25,12 +36,14 @@ def onmouse(event,x,y,flags,param):
 
     # Update image
     frame_copy = frame.copy()
-    radius = 2
+    thickness = 2
     if event in [p1_trigger, p2_trigger]:
-        if p1_CG:
-            cv2.circle(frame_copy, p1_CG, radius, BLUE, thickness=-1)
-        if p2_CG:
-            cv2.circle(frame_copy, p2_CG, radius, BLACK, thickness=-1)
+        for CG, color in [(p1_CG, p1_color), (p2_CG, p2_color)]:
+            if CG is not None:
+                h, w = rect_size
+                TL = (CG[0] - w//2, CG[1] - h//2)  # top-left
+                BR = (CG[0] + w//2, CG[1] + h//2)  # btm+right
+                cv2.rectangle(frame_copy, TL, BR, color, thickness=thickness)
         cv2.imshow(WIN, frame_copy)
 
 
@@ -53,6 +66,8 @@ if __name__ == "__main__":
 
     parser.add_argument('input_filename',
             help='input video file')
+    parser.add_argument('output_filename',
+            help='output video file')
 
     args = parser.parse_args()
 
@@ -61,10 +76,15 @@ if __name__ == "__main__":
     cv2.namedWindow(WIN)
     cv2.setMouseCallback(WIN, onmouse)
 
-    for frame in grab_frame(args.input_filename):
+    fid = open(args.output_filename, 'a')
+    for fi, frame in enumerate(grab_frame(args.input_filename)):
+
+        if fi%10 != 0:
+            continue
 
         cv2.imshow(WIN, frame)
 
+        # Refresh CG as nothing
         p1_CG, p2_CG = None, None
 
         # Do not progress until we get a ESC or 'n'
@@ -75,6 +95,11 @@ if __name__ == "__main__":
         if ch == 27:
             break
         elif ch == ord('n'):
+
+            # Print CG to file and go to the next frame
+            status = ' '.join(map(str, [fi, p1_CG, p2_CG]))
+            fid.write(status + '\n')
             continue
 
+    fid.close()
     cv2.destroyAllWindows()
