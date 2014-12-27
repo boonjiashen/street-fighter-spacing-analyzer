@@ -3,6 +3,28 @@
 import numpy as np
 import cv2
 
+def yield_windows(image, window_size, step_size):
+    """Yield windows of an image in regular intervals in row-major order.
+
+    `image` - a 2D image
+    `window_size` - required (height, width) of window
+    `step_size` - (vertical_step, horizontal_step) 2-ple
+    """
+
+    im_height, im_width = image.shape[:2]
+    win_height, win_width = window_size
+    y_step, x_step = step_size
+
+    max_y_TL = (im_height - win_height) // y_step * y_step
+    max_x_TL = (im_width - win_width) // x_step * x_step
+    for y_TL in range(0, max_y_TL + 1, y_step):
+        for x_TL in range(0, max_x_TL + 1, x_step):
+            window = image[
+                    y_TL:y_TL + win_height,
+                    x_TL:x_TL + win_width]
+            yield window
+
+
 if __name__ == '__main__':
     import argparse
 
@@ -12,33 +34,20 @@ if __name__ == '__main__':
 
     im_target = cv2.imread(args.img_filename)
 
-    hog = cv2.HOGDescriptor()
-    win_width, win_height = hog.winSize
-
-    # Split image into four windows
-    im_TL = cv2.cvtColor(im_target[:win_height, :win_width], cv2.COLOR_BGR2GRAY)
-    im_TR = cv2.cvtColor(im_target[:win_height, 8:win_width+8], cv2.COLOR_BGR2GRAY)
-    im_BR = cv2.cvtColor(im_target[8:win_height+8, 8:win_width+8], cv2.COLOR_BGR2GRAY)
-    im_BL = cv2.cvtColor(im_target[8:win_height+8, :win_width], cv2.COLOR_BGR2GRAY)
-
-    # Crop image with all four windows
-    im_4windows = cv2.cvtColor(im_target[:win_height+8, :win_width+8], cv2.COLOR_BGR2GRAY)
+    hog_obj = cv2.HOGDescriptor()
+    win_width, win_height = hog_obj.winSize
 
     # Compute descriptors of an image, where window strides are taken in row
     # major order
-    hogify = lambda x: hog.compute(x, winStride=(8,8), padding=(0,0))
+    hogify = lambda x: hog_obj.compute(x, winStride=(8,8), padding=(0,0))
 
-    hog_4windows = hogify(im_4windows)
-    hog_TL = hogify(im_TL)
-    hog_BL = hogify(im_BL)
-    hog_TR = hogify(im_TR)
-    hog_BR = hogify(im_BR)
+    #im = np.array([1, 2, 3, 4, 5, 6])[np.newaxis, :, np.newaxis]
+    #windows = [x for x in yield_windows(im, (1, 4), (1, 2))]
 
-    for ind, array in enumerate(np.split(hog_4windows, 4, axis=0)):
-        print('array ', ind, ' = TL? ', np.linalg.norm(array - hog_TL))
-        print('array ', ind, ' = BR? ', np.linalg.norm(array - hog_BR))
-        print('array ', ind, ' = TR? ', np.linalg.norm(array - hog_TR))
-        print('array ', ind, ' = BL? ', np.linalg.norm(array - hog_BL))
+    win_size = (win_height, win_width)
+    step_size = (win_height // 2, win_width // 2)
+    X = (hogify(window)
+            for window in yield_windows(im_target, win_size, step_size))
 
     #hog.setSVMDetector( cv2.HOGDescriptor_getDefaultPeopleDetector() )
 
