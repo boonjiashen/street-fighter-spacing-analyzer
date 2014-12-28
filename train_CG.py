@@ -4,6 +4,7 @@
 import numpy as np
 import cv2
 import argparse
+import util
 
 WIN = 'video'
 BLUE = [255,0,0]        # rectangle color
@@ -47,20 +48,6 @@ def onmouse(event,x,y,flags,param):
         cv2.imshow(WIN, frame_copy)
 
 
-def grab_frame(video_filename):
-    "Yield successive frames from a video file"
-
-    cap = cv2.VideoCapture(video_filename)
-
-    while cap.isOpened():
-
-        # Capture frame-by-frame
-        read_success, frame = cap.read()
-
-        if read_success:
-            yield frame
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -77,7 +64,7 @@ if __name__ == "__main__":
     cv2.setMouseCallback(WIN, onmouse)
 
     fid = open(args.output_filename, 'a')
-    for fi, frame in enumerate(grab_frame(args.input_filename)):
+    for fi, frame in enumerate(util.grab_frame(args.input_filename)):
 
         if fi%10 != 0:
             continue
