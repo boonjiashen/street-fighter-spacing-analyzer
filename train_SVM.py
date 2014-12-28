@@ -2,6 +2,9 @@
 """
 import numpy as np
 import cv2
+import math
+import util
+import re
 
 def yield_windows(image, window_size, step_size):
     """Yield windows of an image in regular intervals in row-major order.
@@ -29,10 +32,26 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('img_filename')
+    parser.add_argument('video_filename')
+    parser.add_argument('CG_filename',
+        help='File that contains center-of-gravity info of each frame')
     args = parser.parse_args()
 
-    im_target = cv2.imread(args.img_filename)
+
+    #################### Load CG of players ###################################
+
+    # Create a function that maps the frame index of a video to a
+    # (p1's CG, p2's CG) 2-ple
+    CGs = {}
+    pattern = r"(.*) (None|\(.*\)) (None|\(.*\))"
+    with open(args.CG_filename, 'r') as fid:
+        for line in fid:
+            match = re.match(pattern, line)
+            frame_index, p1_CG, p2_CG = map(eval, match.groups())
+            CGs[frame_index] = (p1_CG, p2_CG)
+
+
+    #################### Calculate HOG of images ##############################
 
     hog_obj = cv2.HOGDescriptor()
     win_width, win_height = hog_obj.winSize
@@ -41,13 +60,21 @@ if __name__ == '__main__':
     # major order
     hogify = lambda x: hog_obj.compute(x, winStride=(8,8), padding=(0,0))
 
-    #im = np.array([1, 2, 3, 4, 5, 6])[np.newaxis, :, np.newaxis]
-    #windows = [x for x in yield_windows(im, (1, 4), (1, 2))]
-
     win_size = (win_height, win_width)
     step_size = (win_height // 2, win_width // 2)
-    X = (hogify(window)
-            for window in yield_windows(im_target, win_size, step_size))
+
+    # Frames of SF4 match
+    frames = util.grab_frame(args.video_filename)
+    #frames = (next(frames) for i in range(20))
+
+    # Shatter frames into windows
+    #for fi, frame in enumerate(frames):
+        #for window in yield_windows(frame, win_size, step_size):
+            #hog = hogify(window)
+        #if fi % 10 == 0: print(fi)
+
+    #canvas = util.tile(yield_windows(im_target, win_size, step_size))
+    #cv2.imshow('this', canvas)
 
     #hog.setSVMDetector( cv2.HOGDescriptor_getDefaultPeopleDetector() )
 
