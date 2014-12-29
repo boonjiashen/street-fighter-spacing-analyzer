@@ -69,3 +69,29 @@ def tile(tiles):
     canvas = np.vstack(rows)
 
     return canvas
+
+if __name__ == "__main__":
+
+    import itertools
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('video_filename')
+    args = parser.parse_args()
+
+    # Grab all frames
+    full_frames = grab_frame(args.video_filename)
+
+    # Resize all frames to fit better into canvas
+    scale = .3  # Resize scale
+    mini_frames = (cv2.resize(x, None, fx=scale, fy=scale)
+            for x in full_frames)
+
+    # Select every N frames
+    step, n_frames = 10, 30
+    frames = itertools.islice(mini_frames, 0, n_frames * step, step)
+
+    # Tile selected frames into a canvas
+    canvas = tile(frames)
+
+    cv2.imshow('1', canvas)
