@@ -11,6 +11,8 @@ def grab_frame(video_filename):
 
     cap = cv2.VideoCapture(video_filename)
 
+    assert cap.isOpened(), 'Cannot read video!'
+
     while cap.isOpened():
 
         # Capture frame-by-frame
@@ -80,6 +82,7 @@ def tile(tiles, desired_aspect=1.):
 
     return canvas
 
+
 if __name__ == "__main__":
 
     import itertools
@@ -98,7 +101,7 @@ if __name__ == "__main__":
             for x in full_frames)
 
     # Select every N frames
-    step, n_frames = 10, 40
+    step, n_frames = 30, 40
     frames = itertools.islice(mini_frames, 0, n_frames * step, step)
 
     # Tile selected frames into a canvas
