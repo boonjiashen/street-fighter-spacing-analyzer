@@ -91,6 +91,25 @@ if __name__ == '__main__':
 
     #################### Construct labeled dataset ############################
 
+    class Hogger():
+        "Transforms a window to a HoG representation"
+
+        def __init__(self):
+            self.hog_obj = cv2.HOGDescriptor()
+            self.win_width, self.win_height = self.hog_obj.winSize
+
+        def transform(self, frame):
+
+            # Compute descriptors of an image, where window strides are taken in row
+            # major order
+            HoG = self.hog_obj.compute(x, winStride=(8,8), padding=(0,0))
+
+            return HoG
+    
+        def fit(self, *args, **kwargs):
+            pass
+
+
     hog_obj = cv2.HOGDescriptor()
     win_width, win_height = hog_obj.winSize
 
@@ -103,34 +122,19 @@ if __name__ == '__main__':
     last_frame_index = max(CGs.keys())  # index of last labeled frame
     numbered_frames = itertools.islice(numbered_frames, last_frame_index + 1)
 
+    # Shatter frames into windows
     # Labeled training instances for p1
     # X is a list of feature vectors
     # y is a list of True/False
-    X, y = [], []
-
-    windows = []
-
-    # Shatter frames into windows
     win_size = (win_height, win_width)  # Window size based on HoG descriptor
     step_size = (win_height // 2, win_width // 2)  # Step size is half window
-    for fi, frame in numbered_frames:
-
-        logging.info('Constructing labeled data for frame %i' % fi)
-
-        if fi not in CGs.keys(): continue
-
-        CG, _ = CGs[fi] # Get center of gravity of p1
-
-        if CG is None: continue
-
-        for window, bb in yield_windows(
-                frame, win_size, step_size, yield_bb=True):
-
-            hog = hogify(window).ravel() # Get HoG of this window
-            X.append(hog)
-            y.append(contains(bb, CG))
-
-            windows.append(window)
+    labels_and_HoGs = ((contains(bb, CGs[fi][0]), hogify(window).ravel())
+            for fi, frame in numbered_frames
+            if fi in CGs.keys() and CGs[fi][0] is not None
+            for window, bb in yield_windows(
+                    frame, win_size, step_size, yield_bb=True)
+            )
+    y, X = zip(*labels_and_HoGs)
 
 
     #################### Display positive and negative instances ##############
