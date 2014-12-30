@@ -8,8 +8,9 @@ import itertools
 import collections
 import logging
 import matplotlib.pyplot as plt
+import sklearn.pipeline
+import sklearn.svm
 from label_CG import CG_fileIO
-from sklearn import svm
 
 def yield_windows(image, window_size, step_size, yield_bb=False):
     """Yield windows of an image in regular intervals in row-major order.
@@ -99,7 +100,8 @@ if __name__ == '__main__':
 
     # Frames of SF4 match
     numbered_frames = enumerate(util.grab_frame(args.video_filename))
-    numbered_frames = itertools.islice(numbered_frames, 0, 200)
+    last_frame_index = max(CGs.keys())  # index of last labeled frame
+    numbered_frames = itertools.islice(numbered_frames, last_frame_index + 1)
 
     # Labeled training instances for p1
     # X is a list of feature vectors
@@ -146,7 +148,7 @@ if __name__ == '__main__':
 
     #################### Learn SVM ############################################
 
-    clf = svm.LinearSVC().fit(X, y)
+    clf = sklearn.svm.LinearSVC().fit(X, y)
 
 
     #################### Predict unlabeled dataset ############################
