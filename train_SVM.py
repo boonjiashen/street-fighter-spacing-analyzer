@@ -4,6 +4,9 @@ import numpy as np
 import cv2
 import math
 import util
+import itertools
+import collections
+import matplotlib.pyplot as plt
 from train_CG import CG_fileIO
 
 def yield_windows(image, window_size, step_size, yield_bb=False):
@@ -79,6 +82,9 @@ if __name__ == '__main__':
     # (p1's CG, p2's CG) 2-ple
     CGs = CG_fileIO.load(args.CG_filename)
 
+    # Make function return (None, None) when key is absent in dictionary
+    CGs = collections.defaultdict(lambda: (None, None), CGs)
+
 
     #################### Calculate HOG of images ##############################
 
@@ -94,16 +100,41 @@ if __name__ == '__main__':
 
     # Frames of SF4 match
     frames = util.grab_frame(args.video_filename)
-    #frames = (next(frames) for i in range(20))
+    frames = itertools.islice(frames, 0, 200)
+
+    # Labeled training instances for p1 and p2
+    # X is a list of feature vectors
+    # y is a list of True/False
+    X_p1, X_p2, y_p1, y_p2 = [], [], [], []
 
     # Shatter frames into windows
-    #for fi, frame in enumerate(frames):
-        #for window in yield_windows(frame, win_size, step_size):
-            #hog = hogify(window)
-        #if fi % 10 == 0: print(fi)
+    for fi, frame in enumerate(frames):
+        for window, bb in yield_windows(
+                frame, win_size, step_size, yield_bb=True):
 
-    #canvas = util.tile(yield_windows(im_target, win_size, step_size))
-    #cv2.imshow('this', canvas)
+            p1_CG, p2_CG = CGs[fi] # Get center of gravity of p1 and p2
+            hog = hogify(window).ravel() # Get HoG of this window
+
+            # Process label for p1
+            for X, y, CG in [(X_p1, y_p1, p1_CG), (X_p2, y_p2, p2_CG)]:
+                X.append(hog)
+                label = False if CG is None else contains(bb, CG)
+                y.append(label)
+
+
+    ## Select every N frames
+    #step, n_frames = 15, 40
+    #frames = itertools.islice(frames, 0, n_frames * step, step)
+
+    ## Select every N windows
+    #step, n_windows = 100, 1000
+    #windows = itertools.islice(windows, 0, n_windows * step, step)
+
+    # Tile selected frames into a canvas
+    #canvas = util.tile(windows, desired_aspect=16/9)
+    
+    #plt.imshow(canvas[:,:,::-1])
+    #plt.show()
 
     #hog.setSVMDetector( cv2.HOGDescriptor_getDefaultPeopleDetector() )
 
