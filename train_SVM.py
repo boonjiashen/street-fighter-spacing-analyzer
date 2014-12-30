@@ -46,6 +46,21 @@ def yield_windows(image, window_size, step_size, yield_bb=False):
                 yield window
 
 
+def contains(rectangle, point):
+    """Checks if a point is in a rectangle.
+
+    `point` = (x, y) 2-tuple
+
+    `rectangle` = (xTL, yTL, xBR, yBR) 4-tuple
+    """
+
+    # Point is in rectangle in x-axis
+    contains_x = (rectangle[0] <= point[0] <= rectangle[2])
+
+    # Point is in rectangle in y-axis
+    contains_y = (rectangle[1] <= point[1] <= rectangle[3])
+
+    return contains_x and contains_y
 
 
 if __name__ == '__main__':
