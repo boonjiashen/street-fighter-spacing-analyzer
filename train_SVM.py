@@ -6,8 +6,10 @@ import math
 import util
 import itertools
 import collections
+import logging
 import matplotlib.pyplot as plt
-from train_CG import CG_fileIO
+from label_CG import CG_fileIO
+from sklearn import svm
 
 def yield_windows(image, window_size, step_size, yield_bb=False):
     """Yield windows of an image in regular intervals in row-major order.
@@ -70,6 +72,8 @@ if __name__ == '__main__':
 
     import argparse
 
+    logging.basicConfig(filename='example.log',level=logging.INFO)
+
     parser = argparse.ArgumentParser()
     parser.add_argument('video_filename')
     parser.add_argument('CG_filename',
@@ -112,6 +116,7 @@ if __name__ == '__main__':
     win_size = (win_height, win_width)  # Window size based on HoG descriptor
     step_size = (win_height // 2, win_width // 2)  # Step size is half window
     for fi, frame in enumerate(frames):
+        logging.info('Constructing labeled data for frame %i' % fi)
         for window, bb in yield_windows(
                 frame, win_size, step_size, yield_bb=True):
 
@@ -129,15 +134,39 @@ if __name__ == '__main__':
 
     #################### Display positive and negative instances ##############
 
-    for y, player in [(y_p1, 'p1'), (y_p2, 'p2')]:
-        pos_windows = (window
-                for window, is_player in zip(windows, y)
-                if is_player)
-        canvas = util.tile(pos_windows, desired_aspect=16/9)
-        plt.figure()
-        plt.imshow(canvas[:,:,::-1])
+    if False:
+        for y, player in [(y_p1, 'p1'), (y_p2, 'p2')]:
+            pos_windows = (window
+                    for window, is_player in zip(windows, y)
+                    if is_player)
+            canvas = util.tile(pos_windows, desired_aspect=16/9)
+            plt.figure()
+            plt.imshow(canvas[:,:,::-1])
 
-    plt.show()
+        plt.show()
+
+
+    #################### Learn SVM ############################################
+
+    clf_p1 = svm.LinearSVC()
+    clf_p2 = svm.LinearSVC()
+
+    clf_p1.fit(X_p1, y_p1)
+    clf_p2.fit(X_p2, y_p2)
+
+
+    #################### Construct unlabeled dataset ##########################
+
+    # Define a frame that we want to localize players 1 and 2 in
+    fi = 25  # index of frame of interest
+    frames = util.grab_frame(args.video_filename)
+    frame = list(itertools.islice(frames, fi, fi + 1))[0]
+
+    windows, bbs = zip(*yield_windows(
+            frame, win_size, step_size, yield_bb=True))
+    predictions = clf_p1.predict([hogify(window).ravel() for window in windows])
+
+
 
     ## Select every N frames
     #step, n_frames = 15, 40
