@@ -67,6 +67,7 @@ def contains(rectangle, point):
 
 
 if __name__ == '__main__':
+
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -82,11 +83,12 @@ if __name__ == '__main__':
     # (p1's CG, p2's CG) 2-ple
     CGs = CG_fileIO.load(args.CG_filename)
 
-    # Make function return (None, None) when key is absent in dictionary
+    # Make function return (None, None) when frame index is absent in
+    # dictionary
     CGs = collections.defaultdict(lambda: (None, None), CGs)
 
 
-    #################### Calculate HOG of images ##############################
+    #################### Construct labeled dataset ############################
 
     hog_obj = cv2.HOGDescriptor()
     win_width, win_height = hog_obj.winSize
@@ -94,9 +96,6 @@ if __name__ == '__main__':
     # Compute descriptors of an image, where window strides are taken in row
     # major order
     hogify = lambda x: hog_obj.compute(x, winStride=(8,8), padding=(0,0))
-
-    win_size = (win_height, win_width)
-    step_size = (win_height // 2, win_width // 2)
 
     # Frames of SF4 match
     frames = util.grab_frame(args.video_filename)
@@ -107,7 +106,11 @@ if __name__ == '__main__':
     # y is a list of True/False
     X_p1, X_p2, y_p1, y_p2 = [], [], [], []
 
+    windows = []
+
     # Shatter frames into windows
+    win_size = (win_height, win_width)  # Window size based on HoG descriptor
+    step_size = (win_height // 2, win_width // 2)  # Step size is half window
     for fi, frame in enumerate(frames):
         for window, bb in yield_windows(
                 frame, win_size, step_size, yield_bb=True):
@@ -121,6 +124,20 @@ if __name__ == '__main__':
                 label = False if CG is None else contains(bb, CG)
                 y.append(label)
 
+            windows.append(window)
+
+
+    #################### Display positive and negative instances ##############
+
+    for y, player in [(y_p1, 'p1'), (y_p2, 'p2')]:
+        pos_windows = (window
+                for window, is_player in zip(windows, y)
+                if is_player)
+        canvas = util.tile(pos_windows, desired_aspect=16/9)
+        plt.figure()
+        plt.imshow(canvas[:,:,::-1])
+
+    plt.show()
 
     ## Select every N frames
     #step, n_frames = 15, 40
@@ -130,11 +147,6 @@ if __name__ == '__main__':
     #step, n_windows = 100, 1000
     #windows = itertools.islice(windows, 0, n_windows * step, step)
 
-    # Tile selected frames into a canvas
-    #canvas = util.tile(windows, desired_aspect=16/9)
-    
-    #plt.imshow(canvas[:,:,::-1])
-    #plt.show()
 
     #hog.setSVMDetector( cv2.HOGDescriptor_getDefaultPeopleDetector() )
 
