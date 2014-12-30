@@ -101,10 +101,12 @@ if __name__ == "__main__":
             for x in full_frames)
 
     # Select every N frames
-    step, n_frames = 30, 40
+    step, n_frames = 15, 40
     frames = itertools.islice(mini_frames, 0, n_frames * step, step)
 
     # Tile selected frames into a canvas
     canvas = tile(frames, desired_aspect=16/9)
 
     cv2.imshow('1', canvas)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
