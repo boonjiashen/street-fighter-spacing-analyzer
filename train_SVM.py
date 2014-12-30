@@ -87,10 +87,6 @@ if __name__ == '__main__':
     # (p1's CG, p2's CG) 2-ple
     CGs = CG_fileIO.load(args.CG_filename)
 
-    # Make function return (None, None) when frame index is absent in
-    # dictionary
-    CGs = collections.defaultdict(lambda: (None, None), CGs)
-
 
     #################### Construct labeled dataset ############################
 
@@ -102,32 +98,35 @@ if __name__ == '__main__':
     hogify = lambda x: hog_obj.compute(x, winStride=(8,8), padding=(0,0))
 
     # Frames of SF4 match
-    frames = util.grab_frame(args.video_filename)
-    frames = itertools.islice(frames, 0, 200)
+    numbered_frames = enumerate(util.grab_frame(args.video_filename))
+    numbered_frames = itertools.islice(numbered_frames, 0, 200)
 
-    # Labeled training instances for p1 and p2
+    # Labeled training instances for p1
     # X is a list of feature vectors
     # y is a list of True/False
-    X_p1, X_p2, y_p1, y_p2 = [], [], [], []
+    X, y = [], []
 
     windows = []
 
     # Shatter frames into windows
     win_size = (win_height, win_width)  # Window size based on HoG descriptor
     step_size = (win_height // 2, win_width // 2)  # Step size is half window
-    for fi, frame in enumerate(frames):
+    for fi, frame in numbered_frames:
+
         logging.info('Constructing labeled data for frame %i' % fi)
+
+        if fi not in CGs.keys(): continue
+
+        CG, _ = CGs[fi] # Get center of gravity of p1
+
+        if CG is None: continue
+
         for window, bb in yield_windows(
                 frame, win_size, step_size, yield_bb=True):
 
-            p1_CG, p2_CG = CGs[fi] # Get center of gravity of p1 and p2
             hog = hogify(window).ravel() # Get HoG of this window
-
-            # Process label for p1
-            for X, y, CG in [(X_p1, y_p1, p1_CG), (X_p2, y_p2, p2_CG)]:
-                X.append(hog)
-                label = False if CG is None else contains(bb, CG)
-                y.append(label)
+            X.append(hog)
+            y.append(contains(bb, CG))
 
             windows.append(window)
 
@@ -135,69 +134,62 @@ if __name__ == '__main__':
     #################### Display positive and negative instances ##############
 
     if False:
-        for y, player in [(y_p1, 'p1'), (y_p2, 'p2')]:
-            pos_windows = (window
-                    for window, is_player in zip(windows, y)
-                    if is_player)
-            canvas = util.tile(pos_windows, desired_aspect=16/9)
-            plt.figure()
-            plt.imshow(canvas[:,:,::-1])
+        pos_windows = (window
+                for window, is_player in zip(windows, y)
+                if is_player)
+        canvas = util.tile(pos_windows, desired_aspect=16/9)
+        plt.figure()
+        plt.imshow(canvas[:,:,::-1])
 
         plt.show()
 
 
     #################### Learn SVM ############################################
 
-    clf_p1 = svm.LinearSVC()
-    clf_p2 = svm.LinearSVC()
-
-    clf_p1.fit(X_p1, y_p1)
-    clf_p2.fit(X_p2, y_p2)
+    clf = svm.LinearSVC().fit(X, y)
 
 
-    #################### Construct unlabeled dataset ##########################
+    #################### Predict unlabeled dataset ############################
 
-    # Define a frame that we want to localize players 1 and 2 in
-    fi = 25  # index of frame of interest
+    def predict_bbs(frame):
+        "Given a frame, predict which bounding boxes are True."
+
+        windows, bbs = zip(*yield_windows(
+                frame, win_size, step_size, yield_bb=True))
+        hogs = list(hogify(window).ravel() for window in windows)
+        predictions = clf.predict(hogs)
+
+        return [bb
+                for bb, prediction in zip(bbs, predictions)
+                if prediction]
+
+    def draw_bbs(frame, bbs):
+        """Return a copy a frame with bounding boxes drawn
+        
+        `bbs` is a list of bounding boxes. Each bounding box is a (xTL, yTL,
+        xBR, yBR) 4-tuple.
+        """
+
+        im_display = frame.copy()
+        for bb in bbs:
+            cv2.rectangle(im_display, bb[:2], bb[-2:], (0, 0, 0), 3)
+
+        return im_display 
+
+    # Define frames that we want to localize players 1 and 2 in
     frames = util.grab_frame(args.video_filename)
-    frame = list(itertools.islice(frames, fi, fi + 1))[0]
+    #frames = itertools.islice(frames, 0, 100)
 
-    windows, bbs = zip(*yield_windows(
-            frame, win_size, step_size, yield_bb=True))
-    predictions = clf_p1.predict([hogify(window).ravel() for window in windows])
-
+    im_displays = (draw_bbs(frame, predict_bbs(frame))
+            for frame in frames)
 
 
-    ## Select every N frames
-    #step, n_frames = 15, 40
-    #frames = itertools.islice(frames, 0, n_frames * step, step)
+    #################### Display output #######################################
 
-    ## Select every N windows
-    #step, n_windows = 100, 1000
-    #windows = itertools.islice(windows, 0, n_windows * step, step)
-
-
-    #hog.setSVMDetector( cv2.HOGDescriptor_getDefaultPeopleDetector() )
-
-    #while(1):
-        #ret, img = cap.read()
-
-        ##found, w = hog.detectMultiScale(img, winStride=(8,8), padding=(32,32), scale=1.05)
-        #found, _ = hog.detect(img, winStride=(8,8), padding=(32,32))
-        #found_filtered = []
-        #for ri, r in enumerate(found):
-            ##for qi, q in enumerate(found):
-                ##if ri != qi and inside(r, q):
-                    ##break
-            ##else:
-                #found_filtered.append(r)
-
-        #found = [(x, y, 8, 8) for x, y in found]
-        #draw_detections(img, found)
-        ##draw_detections(img, found_filtered, 3)
-        ##print('%d (%d) found' % (len(found_filtered), len(found)))
-        #cv2.imshow('img', img)
-        #ch = 0xFF & cv2.waitKey(30)
-        #if ch == 27:
-            #break
-    #cv2.destroyAllWindows()
+    WIN = 'Output'
+    for frame in im_displays:
+        cv2.imshow(WIN, frame)
+        key = cv2.waitKey(30)
+        if key == 27:
+            break
+    cv2.destroyAllWindows()
