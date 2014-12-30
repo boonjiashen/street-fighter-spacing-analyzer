@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 import math
 import util
-import re
+from train_CG import CG_fileIO
 
 def yield_windows(image, window_size, step_size):
     """Yield windows of an image in regular intervals in row-major order.
@@ -42,13 +42,7 @@ if __name__ == '__main__':
 
     # Create a function that maps the frame index of a video to a
     # (p1's CG, p2's CG) 2-ple
-    CGs = {}
-    pattern = r"(.*) (None|\(.*\)) (None|\(.*\))"
-    with open(args.CG_filename, 'r') as fid:
-        for line in fid:
-            match = re.match(pattern, line)
-            frame_index, p1_CG, p2_CG = map(eval, match.groups())
-            CGs[frame_index] = (p1_CG, p2_CG)
+    CGs = CG_fileIO.load(args.CG_filename)
 
 
     #################### Calculate HOG of images ##############################
