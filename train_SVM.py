@@ -88,6 +88,12 @@ if __name__ == '__main__':
     # (p1's CG, p2's CG) 2-ple
     CGs = CG_fileIO.load(args.CG_filename)
 
+    # Drop p2's CG to make mapping simpler
+    PLAYER_INDEX = 0
+    CGs = dict((frame_index, CG_tuple[PLAYER_INDEX])
+            for frame_index, CG_tuple in CGs.items()
+            if CG_tuple[PLAYER_INDEX] is not None)
+
 
     #################### Construct labeled dataset ############################
 
@@ -128,9 +134,9 @@ if __name__ == '__main__':
     # y is a list of True/False
     win_size = (win_height, win_width)  # Window size based on HoG descriptor
     step_size = (win_height // 2, win_width // 2)  # Step size is half window
-    labels_and_HoGs = ((contains(bb, CGs[fi][0]), hogify(window).ravel())
+    labels_and_HoGs = ((contains(bb, CGs[fi]), hogify(window).ravel())
             for fi, frame in numbered_frames
-            if fi in CGs.keys() and CGs[fi][0] is not None
+            if fi in CGs.keys() and CGs[fi] is not None
             for window, bb in yield_windows(
                     frame, win_size, step_size, yield_bb=True)
             )
