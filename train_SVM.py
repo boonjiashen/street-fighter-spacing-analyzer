@@ -104,24 +104,18 @@ if __name__ == '__main__':
             self.hog_obj = cv2.HOGDescriptor()
             self.win_width, self.win_height = self.hog_obj.winSize
 
-        def transform(self, frame):
+        def hogify(self, window):
+            "Transform one window to its HoG representation"
+            return self.hog_obj.compute(window,
+                    winStride=(8,8),
+                    padding=(0,0)).ravel()
 
-            # Compute descriptors of an image, where window strides are taken in row
-            # major order
-            HoG = self.hog_obj.compute(x, winStride=(8,8), padding=(0,0))
-
-            return HoG
+        def transform(self, windows):
+            return [self.hogify(window) for window in windows]
     
         def fit(self, *args, **kwargs):
             pass
 
-
-    hog_obj = cv2.HOGDescriptor()
-    win_width, win_height = hog_obj.winSize
-
-    # Compute descriptors of an image, where window strides are taken in row
-    # major order
-    hogify = lambda x: hog_obj.compute(x, winStride=(8,8), padding=(0,0))
 
     # Get all frames up till and including the last labeled frame
     last_frame_index = max(CGs.keys())  # index of last labeled frame
@@ -137,16 +131,19 @@ if __name__ == '__main__':
 
     # Shatter frames into windows
     # Labeled training instances for p1
-    # X is a list of feature vectors
+    # X is a list of windows
     # y is a list of True/False
-    win_size = (win_height, win_width)  # Window size based on HoG descriptor
-    step_size = (win_height // 2, win_width // 2)  # Step size is half window
-    labels_and_HoGs = ((contains(bb, CGs[fi]), hogify(window).ravel())
+    win_size = np.array([hogger.win_height, hogger.win_width])
+    step_size = win_size // 2
+    labels_and_windows = ((contains(bb, CGs[fi]), window)
             for fi, frame in indexed_frames
             for window, bb in yield_windows(
                     frame, win_size, step_size, yield_bb=True)
             )
-    y, X = zip(*labels_and_HoGs)
+    y, X = zip(*labels_and_windows)
+
+    # Transform windows to HoGs
+    X = Hogger().transform(X)
 
 
     #################### Display positive and negative instances ##############
@@ -174,7 +171,7 @@ if __name__ == '__main__':
 
         windows, bbs = zip(*yield_windows(
                 frame, win_size, step_size, yield_bb=True))
-        hogs = list(hogify(window).ravel() for window in windows)
+        hogs = Hogger().transform(windows)
         predictions = clf.predict(hogs)
 
         return [bb
