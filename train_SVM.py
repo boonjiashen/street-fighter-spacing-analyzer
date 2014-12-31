@@ -114,7 +114,8 @@ if __name__ == '__main__':
             return [self.hogify(window) for window in windows]
     
         def fit(self, *args, **kwargs):
-            pass
+            "Does no fitting"
+            return self
 
 
     # Get all frames up till and including the last labeled frame
@@ -133,7 +134,7 @@ if __name__ == '__main__':
     # Labeled training instances for p1
     # X is a list of windows
     # y is a list of True/False
-    win_size = np.array([hogger.win_height, hogger.win_width])
+    win_size = np.array([Hogger().win_height, Hogger().win_width])
     step_size = win_size // 2
     labels_and_windows = ((contains(bb, CGs[fi]), window)
             for fi, frame in indexed_frames
@@ -142,15 +143,12 @@ if __name__ == '__main__':
             )
     y, X = zip(*labels_and_windows)
 
-    # Transform windows to HoGs
-    X = Hogger().transform(X)
-
 
     #################### Display positive and negative instances ##############
 
     if False:
         pos_windows = (window
-                for window, is_player in zip(windows, y)
+                for window, is_player in zip(X, y)
                 if is_player)
         canvas = util.tile(pos_windows, desired_aspect=16/9)
         plt.figure()
@@ -161,7 +159,13 @@ if __name__ == '__main__':
 
     #################### Learn SVM ############################################
 
-    clf = sklearn.svm.LinearSVC().fit(X, y)
+    # Define classification pipeline
+    clf = sklearn.pipeline.Pipeline([
+        ('HoG', Hogger()),
+        ('SVM', sklearn.svm.LinearSVC())
+        ])
+
+    clf.fit(X, y)
 
 
     #################### Predict unlabeled dataset ############################
@@ -171,8 +175,7 @@ if __name__ == '__main__':
 
         windows, bbs = zip(*yield_windows(
                 frame, win_size, step_size, yield_bb=True))
-        hogs = Hogger().transform(windows)
-        predictions = clf.predict(hogs)
+        predictions = clf.predict(windows)
 
         return [bb
                 for bb, prediction in zip(bbs, predictions)
