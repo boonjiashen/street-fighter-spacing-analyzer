@@ -123,10 +123,17 @@ if __name__ == '__main__':
     # major order
     hogify = lambda x: hog_obj.compute(x, winStride=(8,8), padding=(0,0))
 
-    # Frames of SF4 match
-    numbered_frames = enumerate(util.grab_frame(args.video_filename))
+    # Get all frames up till and including the last labeled frame
     last_frame_index = max(CGs.keys())  # index of last labeled frame
-    numbered_frames = itertools.islice(numbered_frames, last_frame_index + 1)
+    frames = itertools.islice(
+            util.grab_frame(args.video_filename),
+            last_frame_index + 1
+            )
+
+    # Get only frames that are labeled
+    indexed_frames = ((fi, frame)
+            for fi, frame in enumerate(frames)
+            if fi in CGs.keys())
 
     # Shatter frames into windows
     # Labeled training instances for p1
@@ -135,8 +142,7 @@ if __name__ == '__main__':
     win_size = (win_height, win_width)  # Window size based on HoG descriptor
     step_size = (win_height // 2, win_width // 2)  # Step size is half window
     labels_and_HoGs = ((contains(bb, CGs[fi]), hogify(window).ravel())
-            for fi, frame in numbered_frames
-            if fi in CGs.keys() and CGs[fi] is not None
+            for fi, frame in indexed_frames
             for window, bb in yield_windows(
                     frame, win_size, step_size, yield_bb=True)
             )
