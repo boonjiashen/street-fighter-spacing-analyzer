@@ -12,6 +12,28 @@ import sklearn.pipeline
 import sklearn.svm
 from label_CG import CG_fileIO
 
+
+class Hogger():
+    "Transforms a window to a HoG representation"
+
+    def __init__(self):
+        self.hog_obj = cv2.HOGDescriptor()
+        self.win_width, self.win_height = self.hog_obj.winSize
+
+    def hogify(self, window):
+        "Transform one window to its HoG representation"
+        return self.hog_obj.compute(window,
+                winStride=(8,8),
+                padding=(0,0)).ravel()
+
+    def transform(self, windows):
+        return [self.hogify(window) for window in windows]
+
+    def fit(self, *args, **kwargs):
+        "Does no fitting"
+        return self
+
+
 def yield_windows(image, window_size, step_size, yield_bb=False):
     """Yield windows of an image in regular intervals in row-major order.
 
@@ -96,27 +118,6 @@ if __name__ == '__main__':
 
 
     #################### Construct labeled dataset ############################
-
-    class Hogger():
-        "Transforms a window to a HoG representation"
-
-        def __init__(self):
-            self.hog_obj = cv2.HOGDescriptor()
-            self.win_width, self.win_height = self.hog_obj.winSize
-
-        def hogify(self, window):
-            "Transform one window to its HoG representation"
-            return self.hog_obj.compute(window,
-                    winStride=(8,8),
-                    padding=(0,0)).ravel()
-
-        def transform(self, windows):
-            return [self.hogify(window) for window in windows]
-    
-        def fit(self, *args, **kwargs):
-            "Does no fitting"
-            return self
-
 
     # Get all frames up till and including the last labeled frame
     last_frame_index = max(CGs.keys())  # index of last labeled frame
