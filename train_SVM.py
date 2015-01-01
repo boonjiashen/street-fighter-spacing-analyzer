@@ -127,22 +127,36 @@ if __name__ == '__main__':
             )
 
     # Get only frames that are labeled
-    indexed_frames = ((fi, frame)
+    frames_and_CGs = ((frame, CGs[fi])
             for fi, frame in enumerate(frames)
             if fi in CGs.keys())
+
+    def get_windowfier(win_size):
+        """Get a function that returns the windows and bounding boxes of a frame,
+        given the desired window size
+
+        `win_size` (height, width) tuple
+        """
+
+        step_size = np.array(win_size) // 2
+        def windowfy(frame):
+            return yield_windows(frame, win_size, step_size, yield_bb=True)
+
+        return windowfy
+
+    # Get a function that shatters frames into windows
+    win_size = np.array([Hogger().win_height, Hogger().win_width])
+    windowfy = get_windowfier(win_size)
 
     # Shatter frames into windows
     # Labeled training instances for p1
     # X is a list of windows
     # y is a list of True/False
-    win_size = np.array([Hogger().win_height, Hogger().win_width])
-    step_size = win_size // 2
-    labels_and_windows = ((contains(bb, CGs[fi]), window)
-            for fi, frame in indexed_frames
-            for window, bb in yield_windows(
-                    frame, win_size, step_size, yield_bb=True)
+    windows_and_labels = ((window, contains(bb, CG))
+            for frame, CG in frames_and_CGs
+            for window, bb in windowfy(frame)
             )
-    y, X = zip(*labels_and_windows)
+    X, y = zip(*windows_and_labels)
 
 
     #################### Display positive and negative instances ##############
@@ -174,8 +188,7 @@ if __name__ == '__main__':
     def predict_bbs(frame):
         "Given a frame, predict which bounding boxes are True."
 
-        windows, bbs = zip(*yield_windows(
-                frame, win_size, step_size, yield_bb=True))
+        windows, bbs = zip(*windowfy(frame))
         predictions = clf.predict(windows)
 
         return [bb
