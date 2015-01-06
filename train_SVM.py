@@ -175,7 +175,10 @@ if __name__ == '__main__':
             )
     X, y = zip(*windows_and_labels)
 
-    logging.info("Constructed labeled dataset")
+    try:
+        logging.info("Constructed labeled dataset of {0} instances".format(len(X)))
+    except TypeError:
+        logging.info("Constructed labeled dataset")
 
 
     #################### Display positive instances ###########################
