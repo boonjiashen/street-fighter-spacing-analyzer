@@ -235,10 +235,24 @@ if __name__ == '__main__':
     #################### Display output #######################################
 
     WIN = 'Output'
+    ESC = 27
+    SPACEBAR = 32
     for fi, frame in enumerate(im_displays):
         util.put_text(frame, str(fi))
         cv2.imshow(WIN, frame)
         key = cv2.waitKey(30)
-        if key == 27:
+        if key == ESC:
             break
+
+        # Spacebar pauses video, after while ESC exits video or spacebar
+        # resumes. Other keystrokes are ignored during pause.
+        elif key == SPACEBAR:
+            key = cv2.waitKey()
+            while key != SPACEBAR and key != ESC:
+                key = cv2.waitKey()
+            if key == SPACEBAR:
+                continue
+            else:
+                break
+
     cv2.destroyAllWindows()
