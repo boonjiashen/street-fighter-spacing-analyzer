@@ -104,6 +104,40 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 
+
+
+    #################### Define classification pipeline ######################
+
+    def get_windowfier(win_size, step_size=None):
+        """Get a function that returns the windows and bounding boxes of a frame,
+        given the desired window size
+
+        `win_size` (height, width) tuple
+
+        `step_size` (height, width) tuple. If none, this is half of win_size in
+        both dimensions
+        """
+
+        # Define step size if it's undefined
+        if step_size is None:
+            step_size = np.array(win_size) // 2
+
+        def windowfy(frame):
+            return yield_windows(frame, win_size, step_size, yield_bb=True)
+
+        return windowfy
+
+    # Get a function that shatters frames into windows
+    win_size = np.array([Hogger().win_height, Hogger().win_width])
+    windowfy = get_windowfier(win_size)
+
+    # Classifier that maps windows to True/False
+    clf = sklearn.pipeline.Pipeline([
+        ('HoG', Hogger()),
+        ('SVM', sklearn.svm.LinearSVC())
+        ])
+
+
     #################### Load CG of players ###################################
 
     # Create a function that maps the frame index of a video to a
@@ -131,23 +165,6 @@ if __name__ == '__main__':
             for fi, frame in enumerate(frames)
             if fi in CGs.keys())
 
-    def get_windowfier(win_size):
-        """Get a function that returns the windows and bounding boxes of a frame,
-        given the desired window size
-
-        `win_size` (height, width) tuple
-        """
-
-        step_size = np.array(win_size) // 2
-        def windowfy(frame):
-            return yield_windows(frame, win_size, step_size, yield_bb=True)
-
-        return windowfy
-
-    # Get a function that shatters frames into windows
-    win_size = np.array([Hogger().win_height, Hogger().win_width])
-    windowfy = get_windowfier(win_size)
-
     # Shatter frames into windows
     # Labeled training instances for p1
     # X is a list of windows
@@ -155,16 +172,15 @@ if __name__ == '__main__':
     windows_and_labels = ((window, contains(bb, CG))
             for frame, CG in frames_and_CGs
             for window, bb in windowfy(frame)
+            #for window in [original_window, np.fliplr(original_window)]
             )
     X, y = zip(*windows_and_labels)
 
 
-    #################### Display positive and negative instances ##############
+    #################### Display positive instances ###########################
 
     if False:
-        pos_windows = (window
-                for window, is_player in zip(X, y)
-                if is_player)
+        pos_windows = [x for x, label in zip(X, y) if label]
         canvas = util.tile(pos_windows, desired_aspect=16/9)
         plt.figure()
         plt.imshow(canvas[:,:,::-1])
@@ -173,12 +189,6 @@ if __name__ == '__main__':
 
 
     #################### Learn SVM ############################################
-
-    # Define classification pipeline
-    clf = sklearn.pipeline.Pipeline([
-        ('HoG', Hogger()),
-        ('SVM', sklearn.svm.LinearSVC())
-        ])
 
     clf.fit(X, y)
 
