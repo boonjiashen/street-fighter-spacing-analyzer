@@ -12,7 +12,6 @@ import sklearn.pipeline
 import sklearn.svm
 from label_CG import CG_fileIO
 
-
 class Hogger():
     "Transforms a window to a HoG representation"
 
@@ -236,7 +235,8 @@ if __name__ == '__main__':
     #################### Display output #######################################
 
     WIN = 'Output'
-    for frame in im_displays:
+    for fi, frame in enumerate(im_displays):
+        util.put_text(frame, str(fi))
         cv2.imshow(WIN, frame)
         key = cv2.waitKey(30)
         if key == 27:
