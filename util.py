@@ -5,6 +5,28 @@ import cv2
 import math
 import numpy as np
 
+BLACK = [0, 0, 0]
+WHITE = [256 for i in range(3)]
+
+def put_text(image, text):
+#def put_text(image, text, top_left_origin=(0, 0)):
+    """Draw black text on a white background on the top-right corner of an
+    image
+    """
+
+    font_face = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 1
+    thickness = 1
+    (width, height), _ = cv2.getTextSize(text, font_face, font_scale, thickness)
+
+    # Draw a tight white background for text
+    cv2.rectangle(image, (0, 0), (width, height), WHITE, -1)
+
+    # Draw text
+    cv2.putText(image, text, (0, height),
+            font_face, font_scale, BLACK,
+            )
+
 
 def grab_frame(video_filename):
     "Yield successive frames from a video file"
