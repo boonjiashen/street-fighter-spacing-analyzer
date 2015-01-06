@@ -95,15 +95,13 @@ if __name__ == '__main__':
 
     import argparse
 
-    logging.basicConfig(filename='example.log',level=logging.INFO)
+    logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('video_filename')
     parser.add_argument('CG_filename',
         help='File that contains center-of-gravity info of each frame')
     args = parser.parse_args()
-
-
 
 
     #################### Define classification pipeline ######################
@@ -172,9 +170,12 @@ if __name__ == '__main__':
     windows_and_labels = ((window, contains(bb, CG))
             for frame, CG in frames_and_CGs
             for window, bb in windowfy(frame)
+            #for original_window, bb in windowfy(frame)
             #for window in [original_window, np.fliplr(original_window)]
             )
     X, y = zip(*windows_and_labels)
+
+    logging.info("Constructed labeled dataset")
 
 
     #################### Display positive instances ###########################
@@ -186,11 +187,14 @@ if __name__ == '__main__':
         plt.imshow(canvas[:,:,::-1])
 
         plt.show()
+        #assert False
 
 
     #################### Learn SVM ############################################
 
     clf.fit(X, y)
+
+    logging.info("Learnt classifier")
 
 
     #################### Predict unlabeled dataset ############################
