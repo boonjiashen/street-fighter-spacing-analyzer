@@ -10,6 +10,66 @@ BLACK = [0, 0, 0]
 WHITE = [256 for i in range(3)]
 
 
+def yield_windows(image, window_size, step_size, yield_bb=False):
+    """Yield windows of an image in regular intervals in row-major order.
+
+    `image` - a 2D image
+
+    `window_size` - required (height, width) of window
+
+    `step_size` - (vertical_step, horizontal_step) 2-ple
+
+    `yield_bb' - yields the bounding box of the window if True, i.e., yields a
+    (window, (xTL, yTL, xBR, yBR)) tuple, where TL and BR are top-left and
+    bottom-right of the window.
+    """
+
+    im_height, im_width = image.shape[:2]
+    win_height, win_width = window_size
+    y_step, x_step = step_size
+
+    # y coord of TL of bottom-most window
+    max_y_TL = (im_height - win_height) // y_step * y_step
+
+    # x coord of TL of left-most window
+    max_x_TL = (im_width - win_width) // x_step * x_step
+
+    for y_TL in range(0, max_y_TL + 1, y_step):
+        for x_TL in range(0, max_x_TL + 1, x_step):
+            window = image[
+                    y_TL:y_TL + win_height,
+                    x_TL:x_TL + win_width]
+
+            # Yield both the window and its coordinates
+            if yield_bb:
+                bb = (x_TL, y_TL, x_TL + win_width - 1, y_TL + win_height - 1)
+                yield window, bb
+
+            # Yield window only
+            else:
+                yield window
+
+
+def get_windowfier(win_size, step_size=None):
+    """Get a function that returns the windows and bounding boxes of a frame,
+    given the desired window size
+
+    `win_size` (height, width) tuple
+
+    `step_size` (height, width) tuple. If none, this is half of win_size in
+    both dimensions
+    """
+
+    # Define step size if it's undefined
+    if step_size is None:
+        step_size = np.array(win_size) // 2
+
+    def windowfy(frame):
+        return yield_windows(frame, win_size, step_size, yield_bb=True)
+
+    return windowfy
+
+
 def contains(rectangle, point):
     """Checks if a point is in a rectangle.
 

@@ -10,6 +10,7 @@ import logging
 import matplotlib.pyplot as plt
 import sklearn.pipeline
 import sklearn.svm
+import WindowsLabeler
 from label_CG import CG_fileIO
 
 
@@ -34,46 +35,6 @@ class Hogger():
         return self
 
 
-def yield_windows(image, window_size, step_size, yield_bb=False):
-    """Yield windows of an image in regular intervals in row-major order.
-
-    `image` - a 2D image
-
-    `window_size` - required (height, width) of window
-
-    `step_size` - (vertical_step, horizontal_step) 2-ple
-
-    `yield_bb' - yields the bounding box of the window if True, i.e., yields a
-    (window, (xTL, yTL, xBR, yBR)) tuple, where TL and BR are top-left and
-    bottom-right of the window.
-    """
-
-    im_height, im_width = image.shape[:2]
-    win_height, win_width = window_size
-    y_step, x_step = step_size
-
-    # y coord of TL of bottom-most window
-    max_y_TL = (im_height - win_height) // y_step * y_step
-
-    # x coord of TL of left-most window
-    max_x_TL = (im_width - win_width) // x_step * x_step
-
-    for y_TL in range(0, max_y_TL + 1, y_step):
-        for x_TL in range(0, max_x_TL + 1, x_step):
-            window = image[
-                    y_TL:y_TL + win_height,
-                    x_TL:x_TL + win_width]
-
-            # Yield both the window and its coordinates
-            if yield_bb:
-                bb = (x_TL, y_TL, x_TL + win_width - 1, y_TL + win_height - 1)
-                yield window, bb
-
-            # Yield window only
-            else:
-                yield window
-
-
 if __name__ == '__main__':
 
     import argparse
@@ -89,28 +50,9 @@ if __name__ == '__main__':
 
     #################### Define classification pipeline ######################
 
-    def get_windowfier(win_size, step_size=None):
-        """Get a function that returns the windows and bounding boxes of a frame,
-        given the desired window size
-
-        `win_size` (height, width) tuple
-
-        `step_size` (height, width) tuple. If none, this is half of win_size in
-        both dimensions
-        """
-
-        # Define step size if it's undefined
-        if step_size is None:
-            step_size = np.array(win_size) // 2
-
-        def windowfy(frame):
-            return yield_windows(frame, win_size, step_size, yield_bb=True)
-
-        return windowfy
-
     # Get a function that shatters frames into windows
     win_size = np.array([Hogger().win_height, Hogger().win_width])
-    windowfy = get_windowfier(win_size)
+    windowfy = util.get_windowfier(win_size)
 
     # Classifier that maps windows to True/False
     clf = sklearn.pipeline.Pipeline([
@@ -149,7 +91,7 @@ if __name__ == '__main__':
 
     # Define a method that generates windows and their respective labels given
     # a frame and a player's CG
-    windows_labeler = WindowsLabeler(windowfy).moat
+    windows_labeler = WindowsLabeler.WindowsLabeler(windowfy).moat
 
     # Extract labeled windows from frames
     windows_and_labels = ((window, label)
