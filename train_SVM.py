@@ -12,6 +12,47 @@ import sklearn.pipeline
 import sklearn.svm
 from label_CG import CG_fileIO
 
+
+class WindowsLabeler():
+    """Methods to generate windows and their labels given a frame of a
+    match and the CG of a player.
+    """
+
+    def __init__(self, windowfy):
+        """`windowfy` generates a tuple of (window, bb) given a frame,
+        where `bb` is a (xTL, yTL, xBR, yBR) tuple
+        """
+        self.windowfy = windowfy
+
+    def one_vs_all(self, frame, CG):
+        """Window is positive if it contains the CG, negative otherwise
+        """
+
+        for window, bb in windowfy(frame):
+            yield window, contains(bb, CG)
+
+    def moat(self, frame, CG):
+        """Labels the central window as positive, windows beyond a 'moat'
+        around the CG as negative, and skips all other windows.
+
+        Label the window as positive if the CG is in it
+        Label the window as negative if it's far enough from the CG
+        Otherwise skip the window
+        """
+
+        # Define how far a window has to be from the CG to be labeled negative
+        radius = 100
+        x, y = CG
+        box_around_CG = (x - radius, y - radius, x + radius, y + radius)
+        bb_far_from_CG = lambda bb: not util.overlaps(bb, box_around_CG)
+
+        for window, bb in windowfy(frame):
+            if contains(bb, CG):
+                yield (window, True)
+            elif bb_far_from_CG(bb):
+                yield (window, False)
+
+
 class Hogger():
     "Transforms a window to a HoG representation"
 
@@ -142,6 +183,7 @@ if __name__ == '__main__':
     CGs = CG_fileIO.load(args.CG_filename)
 
     # Drop p2's CG to make mapping simpler
+    # Throw away mappings to None
     PLAYER_INDEX = 0
     CGs = dict((frame_index, CG_tuple[PLAYER_INDEX])
             for frame_index, CG_tuple in CGs.items()
@@ -162,16 +204,15 @@ if __name__ == '__main__':
             for fi, frame in enumerate(frames)
             if fi in CGs.keys())
 
-    # Shatter frames into windows
-    # Labeled training instances for p1
-    # X is a list of windows
-    # y is a list of True/False
-    windows_and_labels = ((window, contains(bb, CG))
-            for frame, CG in frames_and_CGs
-            for window, bb in windowfy(frame)
-            #for original_window, bb in windowfy(frame)
-            #for window in [original_window, np.fliplr(original_window)]
-            )
+    # Define a method that generates windows and their respective labels given
+    # a frame and a player's CG
+    windows_labeler = WindowsLabeler(windowfy).moat
+
+    # Extract labeled windows from frames
+    windows_and_labels = ((window, label)
+        for frame, CG in frames_and_CGs
+        for window, label in windows_labeler(frame, CG)
+        )
     X, y = zip(*windows_and_labels)
 
     try:
@@ -180,16 +221,17 @@ if __name__ == '__main__':
         logging.info("Constructed labeled dataset")
 
 
-    #################### Display positive instances ###########################
+    #################### Display training dataset #############################
 
     if False:
-        pos_windows = [x for x, label in zip(X, y) if label]
-        canvas = util.tile(pos_windows, desired_aspect=16/9)
-        plt.figure()
-        plt.imshow(canvas[:,:,::-1])
+
+        for desired_label in [True, False]:
+            windows = [x for x, label in zip(X, y) if label==desired_label]
+            canvas = util.tile(windows, desired_aspect=16/9)
+            plt.figure()
+            plt.imshow(canvas[:,:,::-1], interpolation="nearest")
 
         plt.show()
-        #assert False
 
 
     #################### Learn SVM ############################################
