@@ -13,6 +13,11 @@ def overlaps(rect1, rect2):
     """Checks if two rectangles overlap
 
     `rect1` `rect2` = (xTL, yTL, xBR, yBR) 4-tuple
+
+    >>> overlaps([0, 0, 5, 5], [6, 5, 10, 10])  # adjacent rectangles
+    False
+    >>> overlaps([0, 0, 5, 5], [5, 5, 10, 10])  # borders coincide
+    True
     """
 
     # Cast as NumPy arrays for easier indexing
