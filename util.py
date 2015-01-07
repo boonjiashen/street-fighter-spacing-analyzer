@@ -9,6 +9,24 @@ import numpy as np
 BLACK = [0, 0, 0]
 WHITE = [256 for i in range(3)]
 
+
+def contains(rectangle, point):
+    """Checks if a point is in a rectangle.
+
+    `point` = (x, y) 2-tuple
+
+    `rectangle` = (xTL, yTL, xBR, yBR) 4-tuple
+    """
+
+    # Point is in rectangle in x-axis
+    contains_x = (rectangle[0] <= point[0] <= rectangle[2])
+
+    # Point is in rectangle in y-axis
+    contains_y = (rectangle[1] <= point[1] <= rectangle[3])
+
+    return contains_x and contains_y
+
+
 def overlaps(rect1, rect2):
     """Checks if two rectangles overlap
 
