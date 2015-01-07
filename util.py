@@ -5,8 +5,31 @@ import cv2
 import math
 import numpy as np
 
+
 BLACK = [0, 0, 0]
 WHITE = [256 for i in range(3)]
+
+def overlaps(rect1, rect2):
+    """Checks if two rectangles overlap
+
+    `rect1` `rect2` = (xTL, yTL, xBR, yBR) 4-tuple
+    """
+
+    # Cast as NumPy arrays for easier indexing
+    rect1, rect2 = map(np.array, [rect1, rect2])
+
+    # Cast rects as lines in x and y dimensions
+    for axis in [0, 1]:
+        line1 = rect1[[axis, axis + 2]]
+        line2 = rect2[[axis, axis + 2]]
+
+        # Check if left edge of one exceeds right edge of the other
+        if line1[0] > line2[1]:
+            return False
+        if line1[1] < line2[0]:
+            return False
+    return True
+
 
 def put_text(image, text):
 #def put_text(image, text, top_left_origin=(0, 0)):
@@ -105,7 +128,59 @@ def tile(tiles, desired_aspect=1.):
     return canvas
 
 
-if __name__ == "__main__":
+def demo_overlaps():
+    """Demo of overlaps() by generating pairs of random rectangles
+
+    Instructions: Press ESC to exit or any other key to continue
+    """
+
+    def generate_rectangle():
+        "Generate a random rectangle"
+
+        # Ensure no zero-width edge
+        rect = np.random.randint(0, 10, 4)
+        while rect[0] == rect[2] or rect[1] == rect[3]:
+            rect = np.random.randint(0, 10, 4)
+
+        # Swap values to ensure that xyTL is less than xyBR
+        for axis in [0, 1]:
+            if rect[axis] > rect[axis + 2]:
+                rect[axis], rect[axis + 2] = rect[axis + 2], rect[axis]
+
+        return rect
+
+    import matplotlib.pyplot as plt
+
+    WIN = 'video'
+    while True:
+
+        # Generate two rectangles to test for overlap
+        rect1, rect2 = [generate_rectangle() for i in range(2)]
+
+        # Draw rectangles on a canvas
+        canvas = np.zeros([10, 10])
+        for rect, color in zip([rect1, rect2], [.5, 1.]):
+            tl, br = map(tuple, [rect[:2], rect[2:]])
+            cv2.rectangle(canvas, tl, br, color)
+        canvas = cv2.resize(canvas,
+                tuple(10*x for x in canvas.shape),
+                interpolation=cv2.INTER_NEAREST)
+
+        print('overlaps?', overlaps(rect1, rect2))
+        cv2.imshow(WIN, canvas)
+
+        # Wait for user input
+        ESC = 27
+        if cv2.waitKey() == ESC:
+            break
+    cv2.destroyAllWindows()
+
+
+def demo_tile():
+    """Demo tile() with stdin
+
+    Instructions: press ESC to exit
+    """
 
     import itertools
     import argparse
@@ -132,3 +207,8 @@ if __name__ == "__main__":
     cv2.imshow('1', canvas)
     cv2.waitKey()
     cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    demo = demo_tile
+    print(demo.__doc__)
+    demo()
