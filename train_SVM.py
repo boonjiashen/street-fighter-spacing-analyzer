@@ -102,6 +102,10 @@ if __name__ == '__main__':
 
     try:
         logging.info("Constructed labeled dataset of {0} instances".format(len(X)))
+        n_pos = sum(y)
+        n_neg = len(y) - n_pos
+        logging.info("{0} positive instances".format(n_pos))
+        logging.info("{0} negative instances".format(n_neg))
     except TypeError:
         logging.info("Constructed labeled dataset")
 
