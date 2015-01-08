@@ -52,6 +52,9 @@ class WindowsLabeler():
         Label the window as positive if the CG is in it
         Label the window as negative if it's far enough from the CG
         Otherwise skip the window
+
+        `is_pos` determines if a window is labeled positive. It should be a
+        Boolean function that takes a rectangle and point as arguments.
         """
 
         # Define how far a window has to be from the CG to be labeled negative
@@ -61,7 +64,7 @@ class WindowsLabeler():
         bb_far_from_CG = lambda bb: not util.overlaps(bb, box_around_CG)
 
         for window, bb in self.windowfy(frame):
-            if util.contains(bb, CG):
+            if is_pos(bb, CG):
                 yield (window, True)
             elif bb_far_from_CG(bb):
                 yield (window, False)
