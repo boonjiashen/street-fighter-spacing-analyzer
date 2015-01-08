@@ -50,9 +50,22 @@ if __name__ == '__main__':
 
     #################### Define classification pipeline ######################
 
-    # Get a function that shatters frames into windows
+    # Get a function that generates sliding windows from a SF4 frame
+    # We construct our test set & training set with this
     win_size = np.array([Hogger().win_height, Hogger().win_width])
-    windowfy = util.get_windowfier(win_size)
+    windowfy = util.get_windowfier(win_size, win_size // 5)
+
+    # Define a method that generates sliding windows and their respective
+    # labels given a frame and a player's CG
+    # We construct the training set with this
+    is_pos = lambda rect, point:  \
+            WindowsLabeler.WindowsLabeler.is_central(rect, point, 0.2)
+    windows_labeler = lambda frame, CG:  \
+        WindowsLabeler.WindowsLabeler(windowfy).moat(
+                frame,
+                CG,
+                is_pos=is_pos,
+                )
 
     # Classifier that maps windows to True/False
     clf = sklearn.pipeline.Pipeline([
@@ -89,10 +102,6 @@ if __name__ == '__main__':
             for fi, frame in enumerate(frames)
             if fi in CGs.keys())
 
-    # Define a method that generates windows and their respective labels given
-    # a frame and a player's CG
-    windows_labeler = WindowsLabeler.WindowsLabeler(windowfy).moat
-
     # Extract labeled windows from frames
     windows_and_labels = ((window, label)
         for frame, CG in frames_and_CGs
@@ -121,6 +130,7 @@ if __name__ == '__main__':
             plt.imshow(canvas[:,:,::-1], interpolation="nearest")
 
         plt.show()
+        assert False
 
 
     #################### Learn SVM ############################################
