@@ -19,7 +19,33 @@ class WindowsLabeler():
         for window, bb in self.windowfy(frame):
             yield window, util.contains(bb, CG)
 
-    def moat(self, frame, CG):
+
+    def is_central(rect, point, percentage):
+        """Returns True if a point is somewhere in the center of a rectangle
+
+        `percentage` percentage per dimension of the rectangle that is
+        considered central.
+
+        `rect` = (xTL, yTL, xBR, yBR) tuple
+
+        `point` = (x, y) tuple
+        """
+
+        # Define a rectangle that's the center of the input rectangle
+        x1, y1, x2, y2 = rect
+        h, w = y2 - y1, x2 - x1
+        central_rect = (
+                x1 + w * (.5 - percentage/2),
+                y1 + h * (.5 - percentage/2),
+                x1 + w * (.5 + percentage/2),
+                y1 + h * (.5 + percentage/2),
+                )
+        central_rect = tuple(map(int, central_rect))
+
+        return util.contains(central_rect, point)
+
+
+    def moat(self, frame, CG, is_pos=util.contains):
         """Labels the central window as positive, windows beyond a 'moat'
         around the CG as negative, and skips all other windows.
 
