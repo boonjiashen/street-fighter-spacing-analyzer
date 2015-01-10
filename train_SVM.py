@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import sklearn.pipeline
 import sklearn.svm
 import WindowsLabeler
+import nms
 from label_CG import CG_fileIO
 
 
@@ -152,6 +153,21 @@ if __name__ == '__main__':
                 for bb, prediction in zip(bbs, predictions)
                 if prediction]
 
+    def filter_windows(windows):
+        """Filter a list of windows to reduce no. of overlapping windows.
+        
+        Returns a list of tuples
+
+        `windows` is a list of tuples
+        """
+        if not windows:
+            return []
+
+        overlap_thresh = 0.2  # threshold for non max suppression
+        subset = nms.non_max_suppression_slow(
+                np.vstack(windows), overlap_thresh)
+        return [tuple(x) for x in subset]
+
     def draw_bbs(frame, bbs):
         """Return a copy a frame with bounding boxes drawn
         
@@ -169,7 +185,7 @@ if __name__ == '__main__':
     frames = util.grab_frame(args.video_filename)
     #frames = itertools.islice(frames, 0, 100)
 
-    im_displays = (draw_bbs(frame, predict_bbs(frame))
+    im_displays = (draw_bbs(frame, filter_windows(predict_bbs(frame)))
             for frame in frames)
 
 
