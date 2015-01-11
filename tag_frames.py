@@ -1,4 +1,5 @@
-"""Label the center of gravity of characters in a Street Fighter match
+"""Tag frames of a Street Fighter match with the center of gravity of
+characters in it.
 """
 
 from CG_fileIO import CG_fileIO
