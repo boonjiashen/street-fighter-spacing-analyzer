@@ -15,11 +15,6 @@ GREEN = [0,255,0]       # PR FG
 BLACK = [0,0,0]         # sure BG
 WHITE = [255,255,255]   # sure FG
 
-frame = None  # target frame of a Street Fighter 4 match
-p1_CG = None  # CG of player 1
-p2_CG = None  # CG of player 2
-rect_size = (100, 50)  # size of rectangle (height, width)
-
 def onmouse(event,x,y,flags,param):
     "Update CG of players upon appropriate mouse click"
 
@@ -39,15 +34,31 @@ def onmouse(event,x,y,flags,param):
 
     # Update image
     frame_copy = frame.copy()
-    thickness = 2
-    if event in [p1_trigger, p2_trigger]:
+    if event in [cv2.EVENT_MOUSEMOVE, p1_trigger, p2_trigger]:
+
+        h, w = rect_size  # Dimensions of boxes to be drawn
+
+        # Box players
         for CG, color in [(p1_CG, p1_color), (p2_CG, p2_color)]:
             if CG is not None:
-                h, w = rect_size
                 TL = (CG[0] - w//2, CG[1] - h//2)  # top-left
                 BR = (CG[0] + w//2, CG[1] + h//2)  # btm+right
-                cv2.rectangle(frame_copy, TL, BR, color, thickness=thickness)
+                cv2.rectangle(frame_copy, TL, BR, color, thickness=3)
+
+        # Draw cursor as a white box with a black shadow
+        TL = (x - w//2, y - h//2)  # top-left
+        BR = (x + w//2, y + h//2)  # btm+right
+        cv2.rectangle(frame_copy, TL, BR, BLACK, thickness=2)
+        cv2.rectangle(frame_copy, TL, BR, WHITE, thickness=1)
         cv2.imshow(WIN, frame_copy)
+#onmouse.frame = None  # target frame of a Street Fighter 4 match
+#onmouse.p1_CG = None  # CG of player 1
+#onmouse.p2_CG = None  # CG of player 2
+#onmouse.rect_size = (100, 50)  # size of rectangle (height, width)
+frame = None  # target frame of a Street Fighter 4 match
+p1_CG = None  # CG of player 1
+p2_CG = None  # CG of player 2
+rect_size = (100, 50)  # size of rectangle (height, width)
 
 
 if __name__ == "__main__":
