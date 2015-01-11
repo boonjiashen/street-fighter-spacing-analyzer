@@ -36,6 +36,95 @@ class Hogger():
         return self
 
 
+class PlayerLocalizer:
+    """Pipeline to localize a Street Fighter 4 player (i.e. character) from a
+    video frame.
+    """
+
+    def __init__(self, windowfy=None, bb2label=None, clf=None):
+        "Initialize functions in the pipeline"
+
+        self.windowfy = windowfy  \
+                if windowfy is not None  \
+                else PlayerLocalizer.get_default_windowfy()
+
+        self.bb2label = bb2label  \
+                if bb2label is not None  \
+                else PlayerLocalizer.get_default_bb2label()
+
+        self.clf = clf  \
+                if clf is not None  \
+                else PlayerLocalizer.get_default_clf()
+
+    def get_default_windowfy(decimation_factor = 5):
+        """Get a function that generates sliding windows from a SF4 frame
+        We construct our test set & training set with this
+
+        `decimation_factor` is the ratio of window size to step size in each
+        dimension.
+        """
+        win_size = np.array([Hogger().win_height, Hogger().win_width])
+        return util.get_windowfier(win_size, win_size // decimation_factor)
+
+    def get_default_bb2label():
+        """Define a function that labels a window based on its position in the frame
+        and the CG of the player
+        This function should return True, False or None
+        We construct the training set with this
+        """
+        is_pos = lambda rect, point:  \
+                BoundingBoxLabeler.BoundingBoxLabeler.is_central(rect, point, 0.2)
+        bb_labeler = lambda frame, CG:  \
+            BoundingBoxLabeler.BoundingBoxLabeler.moat(
+                    frame,
+                    CG,
+                    is_pos=is_pos,
+                    )
+        return bb_labeler
+
+    def get_default_clf():
+        "Classifier that maps windows to True/False"
+        clf = sklearn.pipeline.Pipeline([
+            ('HoG', Hogger()),
+            ('SVM', sklearn.svm.LinearSVC())
+            ])
+
+        return clf
+
+    def labeled_windows(self, frame, CG):
+        "Extract labeled windows from one frame and one CG"
+        for window, bb in self.windowfy(frame):
+            label = self.bb2label(bb, CG)
+            if label is not None:
+                yield window, label
+
+    def predict_bbs(self, frame):
+        "Return a list of bounding boxes predicted to contain the player"
+
+        windows, bbs = zip(*self.windowfy(frame))
+        predictions = self.clf.predict(windows)
+
+        return [bb
+                for bb, prediction in zip(bbs, predictions)
+                if prediction]
+
+
+def filter_bbs(bbs):
+    """Filter a list of bounding boxes to reduce no. of overlapping windows.
+    
+    Returns a list of tuples
+
+    `windows` is a list of tuples
+    """
+    if not bbs:
+        return []
+
+    overlap_thresh = 0.2  # threshold for non max suppression
+    subset = nms.non_max_suppression_slow(
+            np.vstack(bbs), overlap_thresh)
+    return [tuple(x) for x in subset]
+
+
 if __name__ == '__main__':
 
     import argparse
@@ -51,29 +140,8 @@ if __name__ == '__main__':
 
     #################### Define classification pipeline ######################
 
-    # Get a function that generates sliding windows from a SF4 frame
-    # We construct our test set & training set with this
-    win_size = np.array([Hogger().win_height, Hogger().win_width])
-    windowfy = util.get_windowfier(win_size, win_size // 5)
-
-    # Define a function that labels a window based on its position in the frame
-    # and the CG of the player
-    # This function should return True, False or None
-    # We construct the training set with this
-    is_pos = lambda rect, point:  \
-            BoundingBoxLabeler.BoundingBoxLabeler.is_central(rect, point, 0.2)
-    bb_labeler = lambda frame, CG:  \
-        BoundingBoxLabeler.BoundingBoxLabeler.moat(
-                frame,
-                CG,
-                is_pos=is_pos,
-                )
-
-    # Classifier that maps windows to True/False
-    clf = sklearn.pipeline.Pipeline([
-        ('HoG', Hogger()),
-        ('SVM', sklearn.svm.LinearSVC())
-        ])
+    windowfy = PlayerLocalizer.get_default_windowfy(decimation_factor=5)
+    localizer = PlayerLocalizer(windowfy=windowfy)
 
 
     #################### Load CG of players ###################################
@@ -105,10 +173,9 @@ if __name__ == '__main__':
             if fi in CGs.keys())
 
     # Extract labeled windows from frames
-    windows_and_labels = ((window, bb_labeler(bb, CG))
+    windows_and_labels = ((window, label)
         for frame, CG in frames_and_CGs
-        for window, bb in windowfy(frame)
-        if bb_labeler(bb, CG) is not None
+        for window, label in localizer.labeled_windows(frame, CG)
         )
     X, y = zip(*windows_and_labels)
 
@@ -138,37 +205,12 @@ if __name__ == '__main__':
 
     #################### Learn SVM ############################################
 
-    clf.fit(X, y)
+    localizer.clf.fit(X, y)
 
     logging.info("Learnt classifier")
 
 
     #################### Predict unlabeled dataset ############################
-
-    def predict_bbs(frame):
-        "Given a frame, predict which bounding boxes are True."
-
-        windows, bbs = zip(*windowfy(frame))
-        predictions = clf.predict(windows)
-
-        return [bb
-                for bb, prediction in zip(bbs, predictions)
-                if prediction]
-
-    def filter_windows(windows):
-        """Filter a list of windows to reduce no. of overlapping windows.
-        
-        Returns a list of tuples
-
-        `windows` is a list of tuples
-        """
-        if not windows:
-            return []
-
-        overlap_thresh = 0.2  # threshold for non max suppression
-        subset = nms.non_max_suppression_slow(
-                np.vstack(windows), overlap_thresh)
-        return [tuple(x) for x in subset]
 
     def draw_bbs(frame, bbs):
         """Return a copy a frame with bounding boxes drawn
@@ -187,7 +229,7 @@ if __name__ == '__main__':
     frames = util.grab_frame(args.video_filename)
     #frames = itertools.islice(frames, 0, 100)
 
-    im_displays = (draw_bbs(frame, filter_windows(predict_bbs(frame)))
+    im_displays = (draw_bbs(frame, filter_bbs(localizer.predict_bbs(frame)))
             for frame in frames)
 
 
