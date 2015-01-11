@@ -92,6 +92,8 @@ if __name__ == "__main__":
             help='input video file')
     parser.add_argument('output_filename',
             help='output video file')
+    parser.add_argument('--start', type=int, default=0,
+            help='first frame to be labeled')
 
     args = parser.parse_args()
 
@@ -101,12 +103,21 @@ if __name__ == "__main__":
     cv2.setMouseCallback(WIN, onmouse)
 
     fid = open(args.output_filename, 'a')
-    for fi, frame in enumerate(util.grab_frame(args.input_filename)):
+
+    # Initialize frame generator
+    frames = util.grab_frame(args.input_filename)
+
+    # Run generator until the desired starting frame
+    for i in range(args.start - 1): next(frames)
+
+    # Display frames, allowing user to label
+    for fi, frame in enumerate(frames, args.start):
 
         if fi%10 != 0:
             continue
 
         cv2.imshow(WIN, frame)
+        print('Now at frame', fi)
 
         # Refresh CG as nothing
         p1_CG, p2_CG = None, None
