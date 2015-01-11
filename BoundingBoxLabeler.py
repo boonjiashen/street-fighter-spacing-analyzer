@@ -1,23 +1,25 @@
-"""Methods to generate windows and their labels given a frame of a
-match and the CG of a player.
+"""Methods to label a window (a crop of a video frame) given its bounding box
+and the center-of-gravity of the player of interest.
 """
 import cv2
 import util
 
-class WindowsLabeler():
+class BoundingBoxLabeler():
+    """
+    `bb` is a bounding box, a (xTL, yTL, xBR, yBR) tuple
 
-    def __init__(self, windowfy):
-        """`windowfy` generates a tuple of (window, bb) given a frame,
-        where `bb` is a bounding box, a (xTL, yTL, xBR, yBR) tuple
-        """
-        self.windowfy = windowfy
+    `CG` is a (x, y) tuple
 
-    def one_vs_all(self, frame, CG):
+    Labelers return:
+    - True for a positive window,
+    - False for a negative window and
+    - None for a window that should be discarded.
+    """
+
+    def one_vs_all(bb, CG):
         """Window is positive if it contains the CG, negative otherwise
         """
-
-        for window, bb in self.windowfy(frame):
-            yield window, util.contains(bb, CG)
+        return util.contains(bb, CG)
 
 
     def is_central(rect, point, percentage):
@@ -45,7 +47,7 @@ class WindowsLabeler():
         return util.contains(central_rect, point)
 
 
-    def moat(self, frame, CG, is_pos=util.contains):
+    def moat(bb, CG, is_pos=util.contains):
         """Labels the central window as positive, windows beyond a 'moat'
         around the CG as negative, and skips all other windows.
 
@@ -63,8 +65,8 @@ class WindowsLabeler():
         box_around_CG = (x - radius, y - radius, x + radius, y + radius)
         bb_far_from_CG = lambda bb: not util.overlaps(bb, box_around_CG)
 
-        for window, bb in self.windowfy(frame):
-            if is_pos(bb, CG):
-                yield (window, True)
-            elif bb_far_from_CG(bb):
-                yield (window, False)
+        if is_pos(bb, CG):
+            return True
+        if bb_far_from_CG(bb):
+            return False
+        return None

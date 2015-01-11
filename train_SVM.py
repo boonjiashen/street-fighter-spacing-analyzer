@@ -10,7 +10,7 @@ import logging
 import matplotlib.pyplot as plt
 import sklearn.pipeline
 import sklearn.svm
-import WindowsLabeler
+import BoundingBoxLabeler
 import nms
 from label_CG import CG_fileIO
 
@@ -56,13 +56,14 @@ if __name__ == '__main__':
     win_size = np.array([Hogger().win_height, Hogger().win_width])
     windowfy = util.get_windowfier(win_size, win_size // 5)
 
-    # Define a method that generates sliding windows and their respective
-    # labels given a frame and a player's CG
+    # Define a function that labels a window based on its position in the frame
+    # and the CG of the player
+    # This function should return True, False or None
     # We construct the training set with this
     is_pos = lambda rect, point:  \
-            WindowsLabeler.WindowsLabeler.is_central(rect, point, 0.2)
-    windows_labeler = lambda frame, CG:  \
-        WindowsLabeler.WindowsLabeler(windowfy).moat(
+            BoundingBoxLabeler.BoundingBoxLabeler.is_central(rect, point, 0.2)
+    bb_labeler = lambda frame, CG:  \
+        BoundingBoxLabeler.BoundingBoxLabeler.moat(
                 frame,
                 CG,
                 is_pos=is_pos,
@@ -104,9 +105,10 @@ if __name__ == '__main__':
             if fi in CGs.keys())
 
     # Extract labeled windows from frames
-    windows_and_labels = ((window, label)
+    windows_and_labels = ((window, bb_labeler(bb, CG))
         for frame, CG in frames_and_CGs
-        for window, label in windows_labeler(frame, CG)
+        for window, bb in windowfy(frame)
+        if bb_labeler(bb, CG) is not None
         )
     X, y = zip(*windows_and_labels)
 
