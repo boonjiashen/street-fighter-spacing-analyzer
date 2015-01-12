@@ -65,6 +65,8 @@ if __name__ == "__main__":
             help='output video file')
     parser.add_argument('--start', type=int, default=0,
             help='first frame to be labeled')
+    parser.add_argument('--step', type=int, default=10,
+            help='step interval between frames')
 
     args = parser.parse_args()
 
@@ -84,7 +86,7 @@ if __name__ == "__main__":
     # Display frames, allowing user to label
     for fi, onmouse.frame in enumerate(frames, args.start):
 
-        if fi%10 != 0:
+        if (fi - args.start) % args.step != 0:
             continue
 
         cv2.imshow(WIN, onmouse.frame)
