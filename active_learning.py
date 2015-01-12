@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('video_filename')
-    parser.add_argument('CG_filename',
+    parser.add_argument('output_filename',
         help='File that contains center-of-gravity info of each frame')
     args = parser.parse_args()
 
@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     # Create a function that maps the frame index of a video to a
     # (p1's CG, p2's CG) 2-ple
-    CGs = CG_fileIO.load(args.CG_filename)
+    CGs = CG_fileIO.load(args.output_filename)
 
     # Drop p2's CG to make mapping simpler
     # Throw away mappings to None
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     # Keys to control display
     WIN = 'Output'
     ESC = 27
-    SPACEBAR = 32
+    N = ord('n')
 
     cv2.namedWindow(WIN)
     cv2.setMouseCallback(WIN, onmouse)
@@ -113,7 +113,7 @@ if __name__ == '__main__':
 
     # Grab frames in batches and for each batch, ask the human to label the
     # frame with the most uncertain classification
-    batch_size = 2
+    batch_size = 30
     for indexed_batch in util.chunks_of_size_n(indexed_frames, batch_size):
 
         # Get the frame with the highest
@@ -129,5 +129,12 @@ if __name__ == '__main__':
         key = cv2.waitKey()
         if key == ESC:
             break
+
+        # Save line
+        CG_fileIO.saveline(
+                args.output_filename,
+                fi,
+                onmouse.p1_CG,
+                onmouse.p2_CG)
 
     cv2.destroyAllWindows()
