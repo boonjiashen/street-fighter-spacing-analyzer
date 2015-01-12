@@ -2,15 +2,13 @@
 """
 import numpy as np
 import cv2
-import math
 import util
 import itertools
-import collections
 import logging
 import matplotlib.pyplot as plt
-import nms
 from PlayerLocalizer import PlayerLocalizer
 from CG_fileIO import CG_fileIO
+from tag_frames import onmouse
 
 
 if __name__ == '__main__':
@@ -91,6 +89,10 @@ if __name__ == '__main__':
     ESC = 27
     SPACEBAR = 32
 
+    cv2.namedWindow(WIN)
+    cv2.setMouseCallback(WIN, onmouse)
+    onmouse.WIN = WIN
+
     # Get unlabeled frames
     frames = util.grab_frame(args.video_filename)
     indexed_frames = ((fi, frame)
@@ -111,8 +113,7 @@ if __name__ == '__main__':
 
     # Grab frames in batches and for each batch, ask the human to label the
     # frame with the most uncertain classification
-    batch_size = 10
-    first_batch = True
+    batch_size = 2
     for indexed_batch in util.chunks_of_size_n(indexed_frames, batch_size):
 
         # Get the frame with the highest
@@ -122,15 +123,11 @@ if __name__ == '__main__':
         # Display frame with frame index
         util.put_text(frame, str(fi))
 
-        # Pre-compute optimal frame while user is labeling
-        if not first_batch:
-            key = cv2.waitKey()
-            if key == ESC:
-                break
-        else:
-            first_batch = False
-
+        onmouse.frame = frame
+        onmouse.p1_CG, onmouse.p2_CG = None, None
         cv2.imshow(WIN, frame)
-        cv2.waitKey(10)  # Without this line, imshow doesn't show immediately
+        key = cv2.waitKey()
+        if key == ESC:
+            break
 
     cv2.destroyAllWindows()

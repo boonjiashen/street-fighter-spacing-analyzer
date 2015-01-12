@@ -18,8 +18,6 @@ WHITE = [255,255,255]   # sure FG
 def onmouse(event,x,y,flags,param):
     "Update CG of players upon appropriate mouse click"
 
-    global frame, p1_CG, p2_CG
-
     # Define which button maps to which player
     p1_trigger, p2_trigger = cv2.EVENT_LBUTTONUP, cv2.EVENT_RBUTTONUP
 
@@ -28,18 +26,18 @@ def onmouse(event,x,y,flags,param):
 
     # Update CG of players
     if event == p1_trigger:
-        p1_CG = (x, y)
+        onmouse.p1_CG = (x, y)
     elif event == p2_trigger:
-        p2_CG = (x, y)
+        onmouse.p2_CG = (x, y)
 
     # Update image
-    frame_copy = frame.copy()
+    frame_copy = onmouse.frame.copy()
     if event in [cv2.EVENT_MOUSEMOVE, p1_trigger, p2_trigger]:
 
-        h, w = rect_size  # Dimensions of boxes to be drawn
+        h, w = onmouse.rect_size  # Dimensions of boxes to be drawn
 
         # Box players
-        for CG, color in [(p1_CG, p1_color), (p2_CG, p2_color)]:
+        for CG, color in [(onmouse.p1_CG, p1_color), (onmouse.p2_CG, p2_color)]:
             if CG is not None:
                 TL = (CG[0] - w//2, CG[1] - h//2)  # top-left
                 BR = (CG[0] + w//2, CG[1] + h//2)  # btm+right
@@ -50,15 +48,12 @@ def onmouse(event,x,y,flags,param):
         BR = (x + w//2, y + h//2)  # btm+right
         cv2.rectangle(frame_copy, TL, BR, BLACK, thickness=2)
         cv2.rectangle(frame_copy, TL, BR, WHITE, thickness=1)
-        cv2.imshow(WIN, frame_copy)
-#onmouse.frame = None  # target frame of a Street Fighter 4 match
-#onmouse.p1_CG = None  # CG of player 1
-#onmouse.p2_CG = None  # CG of player 2
-#onmouse.rect_size = (100, 50)  # size of rectangle (height, width)
-frame = None  # target frame of a Street Fighter 4 match
-p1_CG = None  # CG of player 1
-p2_CG = None  # CG of player 2
-rect_size = (100, 50)  # size of rectangle (height, width)
+        cv2.imshow(onmouse.WIN, frame_copy)
+onmouse.frame = None  # target frame of a Street Fighter 4 match
+onmouse.p1_CG = None  # CG of player 1
+onmouse.p2_CG = None  # CG of player 2
+onmouse.rect_size = (100, 50)  # size of rectangle (height, width)
+onmouse.WIN = WIN
 
 
 if __name__ == "__main__":
@@ -87,16 +82,16 @@ if __name__ == "__main__":
     for i in range(args.start - 1): next(frames)
 
     # Display frames, allowing user to label
-    for fi, frame in enumerate(frames, args.start):
+    for fi, onmouse.frame in enumerate(frames, args.start):
 
         if fi%10 != 0:
             continue
 
-        cv2.imshow(WIN, frame)
+        cv2.imshow(WIN, onmouse.frame)
         print('Now at frame', fi)
 
         # Refresh CG as nothing
-        p1_CG, p2_CG = None, None
+        onmouse.p1_CG, onmouse.p2_CG = None, None
 
         # Do not progress until we get a ESC or 'n'
         while True:
@@ -106,7 +101,11 @@ if __name__ == "__main__":
         if ch == 27:
             break
         elif ch == ord('n'):
-            CG_fileIO.saveline(args.output_filename, fi, p1_CG, p2_CG)
+            CG_fileIO.saveline(
+                    args.output_filename,
+                    fi,
+                    onmouse.p1_CG,
+                    onmouse.p2_CG)
             continue
 
     fid.close()
