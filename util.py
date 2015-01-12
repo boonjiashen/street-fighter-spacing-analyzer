@@ -10,6 +10,21 @@ BLACK = [0, 0, 0]
 WHITE = [256 for i in range(3)]
 
 
+def chunks_of_size_n(iterator, n):
+    "Split a generator into lists each of size n"
+
+    def chunk():
+        for i in range(n):
+            yield next(iterator)
+
+    while True:
+        curr_chunk = list(chunk())
+        if curr_chunk:
+            yield curr_chunk
+        else:
+            raise StopIteration
+
+
 def yield_windows(image, window_size, step_size, yield_bb=False):
     """Yield windows of an image in regular intervals in row-major order.
 
