@@ -10,7 +10,7 @@ import logging
 import matplotlib.pyplot as plt
 import nms
 from PlayerLocalizer import PlayerLocalizer
-from label_CG import CG_fileIO
+from CG_fileIO import CG_fileIO
 
 
 if __name__ == '__main__':
@@ -84,12 +84,6 @@ if __name__ == '__main__':
     logging.info("Learnt classifier")
 
 
-    #################### Calculate the confidence of predictions ##############
-
-    # Define frames that we want to localize players 1
-    frames = util.grab_frame(args.video_filename)
-    frames = list(itertools.islice(frames, 1, 3))
-
     #################### Display output #######################################
 
     # Keys to control display
@@ -97,47 +91,46 @@ if __name__ == '__main__':
     ESC = 27
     SPACEBAR = 32
 
-    for fi, frame in enumerate(frames):
+    # Get unlabeled frames
+    frames = util.grab_frame(args.video_filename)
+    indexed_frames = ((fi, frame)
+            for fi, frame in enumerate(frames)
+            if fi not in CGs.keys())
 
-        windows, bbs = zip(*localizer.windowfy(frame))
+    def get_frame_uncertainty(localizer, frame):
+        """Get the smallest distance from the decision boundary of all the
+        windows of a frame, i.e. the uncertainty of the most uncertain
+        classification.
+        """
 
-        # Distance from decision boundary
-        positivities = localizer.clf.decision_function(windows)
+        windows = list(window for window, bb in localizer.windowfy(frame))
+        uncertainties = -np.abs(localizer.clf.decision_function(windows))
+        max_uncertainty = np.max(uncertainties)
 
-        # Get windows ranked by positiveness (first is most positively labeled)
-        positivities, windows =  \
-                zip(*sorted(zip(positivities, windows), reverse=True))
-        positive_windows = util.tile(windows, desired_aspect=16/9)
+        return max_uncertainty
 
-        # Get windows ranked by uncertainty (first is most uncertain)
-        uncertainties = -np.abs(positivities)  # higher no. = more uncertain
-        uncertainties, windows =  \
-                zip(*sorted(zip(uncertainties, windows), reverse=True))
-        uncertain_windows = util.tile(windows, desired_aspect=16/9)
+    # Grab frames in batches and for each batch, ask the human to label the
+    # frame with the most uncertain classification
+    batch_size = 10
+    first_batch = True
+    for indexed_batch in util.chunks_of_size_n(indexed_frames, batch_size):
 
-        plt.figure()
-        plt.subplot(1, 2, 1)
-        plt.imshow(positive_windows[:, :, ::-1])
-        plt.subplot(1, 2, 2)
-        plt.imshow(uncertain_windows[:, :, ::-1])
-        plt.title(str(fi))
+        # Get the frame with the highest
+        fi, frame = max(indexed_batch,
+                key=lambda x: get_frame_uncertainty(localizer, x[1]))
 
-        continue
-        cv2.imshow(WIN, ranking)
-        key = cv2.waitKey()
-        if key == ESC:
-            break
+        # Display frame with frame index
+        util.put_text(frame, str(fi))
 
-        # Spacebar pauses video, after while ESC exits video or spacebar
-        # resumes. Other keystrokes are ignored during pause.
-        elif key == SPACEBAR:
+        # Pre-compute optimal frame while user is labeling
+        if not first_batch:
             key = cv2.waitKey()
-            while key != SPACEBAR and key != ESC:
-                key = cv2.waitKey()
-            if key == SPACEBAR:
-                continue
-            else:
+            if key == ESC:
                 break
+        else:
+            first_batch = False
 
-    plt.show()
+        cv2.imshow(WIN, frame)
+        cv2.waitKey(10)  # Without this line, imshow doesn't show immediately
+
     cv2.destroyAllWindows()
