@@ -10,7 +10,7 @@ import logging
 import matplotlib.pyplot as plt
 import nms
 from PlayerLocalizer import PlayerLocalizer
-from label_CG import CG_fileIO
+from CG_fileIO import CG_fileIO
 
 
 def filter_bbs(bbs):
@@ -133,7 +133,8 @@ if __name__ == '__main__':
     frames = util.grab_frame(args.video_filename)
     #frames = itertools.islice(frames, 0, 100)
 
-    im_displays = (draw_bbs(frame, filter_bbs(localizer.predict_bbs(frame)))
+    im_displays = (
+            draw_bbs(frame, filter_bbs(localizer.predict_bbs(frame, allow_empty=False)))
             for frame in frames)
 
 

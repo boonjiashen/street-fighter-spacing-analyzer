@@ -68,14 +68,22 @@ class PlayerLocalizer:
             if label is not None:
                 yield window, label
 
-    def predict_bbs(self, frame):
-        "Return a list of bounding boxes predicted to contain the player"
+    def predict_bbs(self, frame, allow_empty=True):
+        """Return a list of bounding boxes predicted to contain the player,
+        with a length of one.
+
+        `allow_empty` if False, returns the most probable prediction in the
+        case when none of the windows are on the positive side of the decision
+        boundary.
+        """
 
         windows, bbs = zip(*self.windowfy(frame))
-        predictions = self.clf.predict(windows)
+        distances = self.clf.decision_function(windows)
 
-        return [bb
-                for bb, prediction in zip(bbs, predictions)
-                if prediction]
-
-
+        if np.any(distances > 0) or allow_empty:
+            return [bb
+                    for bb, distance in zip(bbs, distances)
+                    if distance > 0]
+        else:
+            most_positive_bb = bbs[np.argmax(distances)] 
+            return [most_positive_bb]
