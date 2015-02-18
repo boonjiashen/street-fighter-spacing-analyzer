@@ -148,7 +148,7 @@ if __name__ == '__main__':
         fps = cap.get(cv2.CAP_PROP_FPS)
         h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        sz = tuple(map(int, [h, w]))  # frame size
+        sz = tuple(map(int, [w, h]))  # NOTE! order is width then height
         cap.release()
         codec = cv2.VideoWriter_fourcc(*'MJPG')
 
