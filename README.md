@@ -18,6 +18,7 @@ training stage is a lot easier. The match is [Infiltration (Gouken) vs Tokido
 
     >> python3 train_SVM.py data/my_video.mp4 data/Infiltration_Gouken_vs_Tokido_Gouki.txt
 
-<b></b>
+#Results
 
 [![replay](http://img.youtube.com/vi/37NeE0lTZc8/0.jpg)](https://www.youtube.com/watch?v=37NeE0lTZc8)
+Date: Feb 18 2015
