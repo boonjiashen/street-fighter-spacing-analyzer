@@ -16,12 +16,12 @@ if __name__ == "__main__":
     # Define the codec and create VideoWriter object
     codec = cv2.VideoWriter_fourcc(*'MJPG')
     fps = 30.
-    sz = (200, 200)  # frame size
+    sz = (640, 360)  # frame size
     out = cv2.VideoWriter(filename, codec, fps, sz)
 
     n_frames = 1000
     for intensity in itertools.islice(intensities, n_frames):
-        image = intensity * np.ones(list(sz) + [3], dtype=np.uint8)
+        image = intensity * np.ones(list(sz)[::-1] + [3], dtype=np.uint8)
         out.write(image)
 
     out.release()
