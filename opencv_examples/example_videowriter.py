@@ -16,7 +16,7 @@ if __name__ == "__main__":
     # Define the codec and create VideoWriter object
     codec = cv2.VideoWriter_fourcc(*'MJPG')
     fps = 30.
-    sz = (640, 360)  # frame size
+    sz = (640, 360)  # NOTE! frame size = (w, h)
     out = cv2.VideoWriter(filename, codec, fps, sz)
 
     n_frames = 1000
