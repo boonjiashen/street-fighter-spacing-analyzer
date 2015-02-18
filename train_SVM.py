@@ -39,6 +39,8 @@ if __name__ == '__main__':
     parser.add_argument('video_filename')
     parser.add_argument('CG_filename',
         help='File that contains center-of-gravity info of each frame')
+    parser.add_argument('-o', '--output_filename',
+        help='Filename of video to be saved (default: does not save)')
     args = parser.parse_args()
 
 
@@ -140,10 +142,30 @@ if __name__ == '__main__':
 
     #################### Display output #######################################
 
+    save_video = args.output_filename is not None
+    if save_video:
+        cap = cv2.VideoCapture(args.video_filename)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        sz = tuple(map(int, [h, w]))  # frame size
+        cap.release()
+        codec = cv2.VideoWriter_fourcc(*'MJPG')
+
+        out = cv2.VideoWriter(args.output_filename, codec, fps, sz)
+
+        print('Saving to video', args.output_filename)
+
     WIN = 'Output'
     ESC = 27
     SPACEBAR = 32
     for fi, frame in enumerate(im_displays):
+
+        if save_video:
+            #print('writing', fi)
+            #out.write(np.zeros((360, 640, 3), dtype=np.uint8))
+            out.write(frame)
+
         util.put_text(frame, str(fi))
         cv2.imshow(WIN, frame)
         key = cv2.waitKey(30)
@@ -162,3 +184,6 @@ if __name__ == '__main__':
                 break
 
     cv2.destroyAllWindows()
+    if save_video:
+        out.release()
+        print('Saved to video', args.output_filename)
