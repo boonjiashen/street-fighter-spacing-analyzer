@@ -14,15 +14,10 @@ import time
 
 import CoatesScaler
 import ZCA
-import pickle
+import SphericalKMeans
 
-import sklearn.datasets
 import sklearn.cluster
-import sklearn.preprocessing
-import sklearn.decomposition
 import sklearn.pipeline
-from sklearn.feature_extraction.image import extract_patches_2d
-from sklearn.feature_extraction.image import reconstruct_from_patches_2d
 
 
 def cluster_frames():
@@ -79,6 +74,11 @@ def cluster_frames():
                 'batch_size': 3000,
             })
     n_clusters = 100
+    skmeans = (SphericalKMeans.SphericalKMeans,
+            {
+                'n_clusters': n_clusters,
+                'max_iter': 10,
+            })
     kmeans = (sklearn.cluster.KMeans,
             {
                 'n_clusters': n_clusters,
@@ -88,7 +88,7 @@ def cluster_frames():
             })
 
     # Define pipeline
-    steps = [coates_scaler, zca, kmeans]
+    steps = [coates_scaler, zca, skmeans]
     pipeline = sklearn.pipeline.make_pipeline(
             *[fun(**kwargs) for fun, kwargs in steps])
 
