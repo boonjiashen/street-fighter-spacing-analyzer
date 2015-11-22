@@ -45,10 +45,10 @@ class SphericalKMeans(BaseEstimator, TransformerMixin):
         for _ in range(self.max_iter):
             S = np.dot(X, D.T)
             for s in S:
-                label = np.argmax(s)
+                label = np.argmax(np.abs(s))
                 s[[i for i in range(k) if i != label]] = 0
             D = np.dot(S.T, X) + D
-            D = (D.T / np.sum(D, axis=1)).T
+            D = (D.T / np.linalg.norm(D, axis=1)).T
 
         self.cluster_centers_ = D
 
@@ -60,7 +60,7 @@ class SphericalKMeans(BaseEstimator, TransformerMixin):
 
     def predict(self, X):
         S = np.dot(X, self.cluster_centers_.T)
-        labels = S.argmax(axis=1)
+        labels = np.abs(S).argmax(axis=1)
 
         return labels
 
@@ -74,6 +74,7 @@ def main():
     print(kmeans.cluster_centers_)
     X_test = np.random.randint(0, 5, (100, n))
     print(kmeans.predict(X_test))
+    assert False
 
 if __name__ == "__main__":
     main()
