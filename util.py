@@ -4,10 +4,40 @@
 import cv2
 import math
 import numpy as np
+import logging
 
 
 BLACK = [0, 0, 0]
 WHITE = [256 for i in range(3)]
+
+
+def print_steps(steps, printer=logging.info):
+    """Pretty-print steps of a pipeline
+
+    `steps` is a list of (class_object, dict) tuples
+
+    `printer` is the function used to print
+    """
+
+    # Print steps and respective kwargs in pipeline
+    for si, (class_object, kwargs) in enumerate(steps, 1):
+        if not kwargs:
+            printer('{}) {}'.format(si, class_object.__name__))
+            continue
+
+        # Width of kwarg keyword, to make sure they right-justify
+        width = max(map(len, kwargs.keys()))
+
+        for ki, (key, value) in enumerate(kwargs.items()):
+            fmt = '{} {:>%i} = {}' % width
+            info = fmt.format(class_object.__name__, key, value)
+
+            # Add step index (or blank space to maintain column format)
+            if ki == 0:
+                info = '{}) '.format(si) + info
+            else:
+                info = '   ' + info
+            printer(info)
 
 
 def chunks_of_size_n(iterator, n):
