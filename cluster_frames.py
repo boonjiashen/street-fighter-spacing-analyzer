@@ -40,15 +40,23 @@ def cluster_frames():
         raise ValueError('Invalid log level: %s' % loglevel)
     logging.basicConfig(level=numeric_level, format='%(asctime)s %(message)s')
 
+    filenames = ['data/' + str(i) + '.png' for i in range(5)];
+    logging.info('Loading %i images... ', len(filenames))
+
     # Load data
     d = 6  # size of patch
-    im = cv2.imread('data/0.png')
-    im_height, im_width = im.shape[:2]
+    im_originals = [cv2.imread(filename) for filename in filenames]
+    im_height, im_width = im_originals[0].shape[:2]
     all_patch_rows =  np.array(list(
             patch.ravel()
+            for im in im_originals
             for patch in util.yield_windows(im, (d, d), (1, 1))
             ))
-    logging.info('Loaded dataset of size %i', len(all_patch_rows))
+    num_rows_per_im = len(all_patch_rows) // len(im_originals)
+    num_im = len(im_originals)
+    logging.info('Loaded %i examples from %i images',
+        len(all_patch_rows),
+        len(im_originals))
 
     # Randomly sample a subset of the data
     sample_size = int(args.data_proportion * len(all_patch_rows))
@@ -99,29 +107,96 @@ def cluster_frames():
 
     ######################### Display atoms of dictionary #####################
 
+    frames = util.grab_frame('data/infil.mp4')
+    patch_row_chunks = (
+            np.array(list(
+            patch.ravel()
+            for patch in util.yield_windows(im, (d, d), (1, 1))))
+            for im in frames)
+
+    do_equalize = False
+    if do_equalize:
+        # Define histogram equalization based on training data
+        logging.info('Computing histogram equalizer...')
+        counts, bins = np.histogram(pipeline.predict(all_patch_rows), range(n_clusters + 1))
+        cumhist = np.cumsum(counts)
+        equalize = lambda x: cumhist[x] / cumhist[-1]
+        logging.info('done.')
+
+    def im_displays(do_equalize=False):
+        for patch_rows in patch_row_chunks:
+            y = pipeline.predict(patch_rows)
+
+            # Map to [0, 1) so that imshow scales across entire colormap spectrum
+            if do_equalize:
+                y = equalize(y)
+            else:
+                y = y / n_clusters
+
+            newshape = (im_height - d + 1, im_width - d + 1, )
+            segmentation = np.reshape(y, newshape)
+
+            # Apply color map and remove alpha channel
+            cmap = plt.cm.Set1
+            colored_segmentation = cmap(segmentation)[:, :, :3]
+            colored_segmentation = (colored_segmentation * 255).astype(np.uint8)
+
+            yield colored_segmentation
+
+
+    """
     y = pipeline.predict(all_patch_rows)
 
     # To consistently get similar clustering labels across runs,
     # we arrange clusters such that lower cluster indices have higher counts
+    logging.info('Sorting cluster label by cluster size...')
     counts, bins = np.histogram(y, range(n_clusters + 1))
     rank = scipy.stats.rankdata(counts, method='ordinal').astype(int) - 1
     y = rank[y]
+    logging.info('done.')
 
     # Now to get very distinct colors for each cluster, we do histogram
     # equalization
+    logging.info('Equalizing histogram of segmentation image...')
     counts, bins = np.histogram(y, range(n_clusters + 1))
     cumhist = np.cumsum(counts)
     y = cumhist[y] / cumhist[-1]
+    logging.info('done.')
 
-    newshape = (im_height - d + 1, im_width - d + 1, )
-    # Map to [0, 1) so that imshow scales across entire colormap spectrum
-    segmentation = np.reshape(y, newshape) / n_clusters
+    for i, segmentation in enumerate(segmentations, 1):
 
-    plt.figure();
-    fig_title = 'Segmentation' + time.asctime(time.localtime())
-    plt.gcf().canvas.set_window_title(fig_title)
-    plt.imshow(segmentation, cmap=plt.cm.Set1, interpolation='nearest')
+        plt.figure();
+        fig_title = 'im ' + str(i) + " " + time.asctime(time.localtime())
+        plt.gcf().canvas.set_window_title(fig_title)
+        plt.imshow(segmentation, cmap=plt.cm.Set1, interpolation='nearest')
+    
     plt.show()
+    """
+
+    WIN = 'Output'
+    ESC = 27
+    SPACEBAR = 32
+    for fi, frame in enumerate(im_displays(do_equalize=do_equalize)):
+
+        util.put_text(frame, str(fi))
+        cv2.imshow(WIN, frame)
+        key = cv2.waitKey(30)
+        if key == ESC:
+            break
+
+        # Spacebar pauses video, after while ESC exits video or spacebar
+        # resumes. Other keystrokes are ignored during pause.
+        elif key == SPACEBAR:
+            key = cv2.waitKey()
+            while key != SPACEBAR and key != ESC:
+                key = cv2.waitKey()
+            if key == SPACEBAR:
+                continue
+            else:
+                break
+
+    cv2.destroyAllWindows()
+
 
     return
 
