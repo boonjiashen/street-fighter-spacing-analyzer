@@ -28,10 +28,13 @@ from sklearn.feature_extraction.image import reconstruct_from_patches_2d
 def cluster_frames():
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('video_filename')
     parser.add_argument("data_proportion", nargs='?', type=float, default=1.,
             help="Proportion of full dataset to be used")
     parser.add_argument("--log", type=str, default='INFO',
             help="Logging setting (e.g., INFO, DEBUG)")
+    parser.add_argument('-o', '--output_filename',
+        help='Filename of video to be saved (default: does not save)')
     args = parser.parse_args()
 
     # Setting logging parameters
@@ -107,7 +110,7 @@ def cluster_frames():
 
     ######################### Display atoms of dictionary #####################
 
-    frames = util.grab_frame('data/infil.mp4')
+    frames = util.grab_frame(args.video_filename)
     patch_row_chunks = (
             np.array(list(
             patch.ravel()
@@ -173,10 +176,29 @@ def cluster_frames():
     plt.show()
     """
 
+
+    save_video = args.output_filename is not None
+    if save_video:
+        cap = cv2.VideoCapture(args.video_filename)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        sz = tuple(map(int, [w, h]))  # NOTE! order is width then height
+        cap.release()
+        codec = cv2.VideoWriter_fourcc(*'FMPG')
+
+        out = cv2.VideoWriter(args.output_filename, -1, fps, sz)
+
+        logging.info('Saving to video %s', args.output_filename)
+
+
     WIN = 'Output'
     ESC = 27
     SPACEBAR = 32
     for fi, frame in enumerate(im_displays(do_equalize=do_equalize)):
+
+        if save_video:
+            out.write(frame)
 
         util.put_text(frame, str(fi))
         cv2.imshow(WIN, frame)
@@ -196,6 +218,9 @@ def cluster_frames():
                 break
 
     cv2.destroyAllWindows()
+    if save_video:
+        out.release()
+        logging.info('Saved to video %s', args.output_filename)
 
 
     return
