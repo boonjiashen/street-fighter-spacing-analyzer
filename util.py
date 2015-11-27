@@ -5,10 +5,30 @@ import cv2
 import math
 import numpy as np
 import logging
+import itertools
 
 
 BLACK = [0, 0, 0]
-WHITE = [256 for i in range(3)]
+WHITE = [255 for i in range(3)]
+
+
+def index(data, indices):
+    """Yields data[indices[0]], data[indices[1]] ... until either iterator runs
+    out
+
+    Pre-conditions: indices is in ascending order, contains non-negative
+    integers, contains unique numbers
+    """
+    def bits():
+        i = 0
+        for ind in indices:
+            while i < ind:
+                yield False
+                i += 1
+            yield True
+            i += 1
+
+    return itertools.compress(data, bits())
 
 
 def print_steps(steps, printer=logging.info):
@@ -339,6 +359,8 @@ def demo_tile():
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    demo = demo_tile
-    print(demo.__doc__)
-    demo()
+
+    data = np.random.randint(0, 9, 10)
+    indices = [0, 2, 3, 6, 13]
+    print(indices, data)
+    print(list(index(data, indices)))
