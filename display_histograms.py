@@ -28,11 +28,12 @@ def main():
     logging.basicConfig(level=numeric_level, format='%(asctime)s %(message)s')
 
 
+    n_bins = 10
     def update_line(frame, line):
         im_HSV = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        counts, bins = np.histogram(im_HSV[:,:,0], bins=180)
+        counts, bins = np.histogram(im_HSV[:,:,0], bins=n_bins)
         data = np.vstack([
-                np.arange(180),
+                np.arange(n_bins),
                 counts / np.max(counts),
                 ])
         line.set_data(data)
@@ -40,7 +41,7 @@ def main():
 
     fig1 = plt.figure()
     l, = plt.plot([], [], 'ro-')
-    plt.xlim(0, 180)
+    plt.xlim(0, n_bins)
     plt.ylim(0, 1)
 
     all_frames = util.grab_frame(args.input_filename)
