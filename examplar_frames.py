@@ -34,23 +34,22 @@ def main():
 
 
     # Load data
-    start, stop, step = 0, 300, 2    
+    start, stop, step = 0, 2700, 1
     #start, stop, step = None, None, None
     logging.info('Loading from %s (start frame=%s, end frame=%s, increment=%s)',
         args.input_filename, *map(str, [start, stop, step]))
     im_originals =  \
             (itertools.islice(util.grab_frame(args.input_filename), start, stop, step))
-    logging.info('Loaded images')
-
     im_HSVs = (cv2.cvtColor(im_original, cv2.COLOR_BGR2HSV)
             for im_original in im_originals)
     Hhistograms = (np.histogram(im[:,:,0], range=(0, 180.))[0] for im in im_HSVs)
-
     X = np.vstack(Hhistograms)
+    logging.info('Loaded histograms')
+
 
     ### DEFINE PIPELINE ###
 
-    n_clusters = 10
+    n_clusters = 25
     kmeans = (sklearn.cluster.KMeans,
             {
                 'n_clusters': n_clusters,
@@ -92,11 +91,23 @@ def main():
             (itertools.islice(util.grab_frame(args.input_filename), None, last_frame_ind+1))
     im_examplars = (im for frame_ind, im in enumerate(im_examplars) if frame_ind in frame_inds)
 
-    for frame_ind, im_examplar in zip(frame_inds, im_examplars):
-        plt.figure()
-        plt.gcf().canvas.set_window_title(str(frame_ind))
-        plt.imshow(im_examplar[:,:,::-1])
+    num_subplot_rows = math.ceil(len(frame_inds)**.5)
+    plt.figure()
+    fig_title = "Examplar images at %s" % time.asctime(time.localtime())
+    plt.gcf().canvas.set_window_title(fig_title)
+    for i, (frame_ind, im_examplar) in enumerate(zip(frame_inds, im_examplars)):
+        plt.subplot(num_subplot_rows, num_subplot_rows, i + 1)
+        plt.imshow(im_examplar[:,:,::-1], interpolation='nearest')
+        plt.xticks(())  # remove ticks
+        plt.yticks(())
+        plt.title("Frame #%i" % (frame_ind))
+    plt.tight_layout()
     plt.show()
+
+    """
+    for frame_ind, im_examplar in zip(frame_inds, im_examplars):
+        plt.imshow(im_examplar[:,:,::-1])
+        """
 
     logging.info('Examplar frame indices are %s', str(frame_inds))
     return
