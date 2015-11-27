@@ -193,6 +193,8 @@ def grab_frame(video_filename):
 
         if read_success:
             yield frame
+        else:
+            break
 
 
 def tile(tiles, desired_aspect=1.):
