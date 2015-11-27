@@ -35,7 +35,26 @@ class FrameExemplifier():
 
         util.print_steps(steps)
 
-    def get_from_features(self, X):
+
+    def from_BGRs(self, im_BGRs):
+        """Returns the indices of the examplar of an iterator of BGR images
+
+        Returns a n_examplars length array where each element is in [0, n)
+        `im_BGRs` an iterator of color images in BGR space
+        `n` length of im_BGRs
+        """
+
+        im_HSVs = (cv2.cvtColor(im_original, cv2.COLOR_BGR2HSV)
+                for im_original in im_BGRs)
+        Hhistograms = (np.histogram(im[:,:,0], bins=20, range=(0, 180.))[0]
+                for im in im_HSVs)
+        X = np.vstack(Hhistograms)
+
+        logging.info('Loaded histograms')
+
+        return self.from_features(X)
+
+    def from_features(self, X):
         """Returns the indices of the examplar of dataset X
 
         Returns a n_examplars length array where each element is in [0, n)
@@ -78,7 +97,7 @@ def test():
             for center in centers)
 
     exemplifier = FrameExemplifier(n_clusters)
-    exemplar_inds = exemplifier.get_from_features(X)
+    exemplar_inds = exemplifier.from_features(X)
 
     plt.figure()
     fig_title = "X at %s" % time.asctime(time.localtime())
@@ -111,33 +130,28 @@ def main():
         raise ValueError('Invalid log level: %s' % loglevel)
     logging.basicConfig(level=numeric_level, format='%(asctime)s %(message)s')
 
-    exemplifier = FrameExemplifier(3)
+    n_exemplars = 25
+    exemplifier = FrameExemplifier(n_exemplars)
 
     # Load data
-    start, stop, step = 0, 700, 1
+    start, stop, step = 0, 2700, 1
     #start, stop, step = None, None, None
     logging.info('Loading from %s (start frame=%s, end frame=%s, increment=%s)',
         args.input_filename, *map(str, [start, stop, step]))
-    im_originals =  \
-            (itertools.islice(util.grab_frame(args.input_filename), start, stop, step))
-    im_HSVs = (cv2.cvtColor(im_original, cv2.COLOR_BGR2HSV)
-            for im_original in im_originals)
-    Hhistograms = (np.histogram(im[:,:,0], bins=20, range=(0, 180.))[0] for im in im_HSVs)
-    X = np.vstack(Hhistograms)
-    logging.info('Loaded histograms')
+    sample_inds = list(range(start, stop, step))
+    all_frames = util.grab_frame(args.input_filename)
+    frame_sample = (util.index(all_frames, sample_inds))
 
-    best_X_inds = exemplifier.get_from_features(X)
+    best_X_inds = exemplifier.from_BGRs(frame_sample)
 
-    # Map index in X to index in the input video
-    frame_inds = np.arange(start, stop, step)[best_X_inds]
+    # Map index in frame_sample to index in the input video
+    frame_inds = np.array(sample_inds)[best_X_inds]
     #frame_inds = np.linspace(0, 2700, 25, dtype=int)
     frame_inds.sort()
-    last_frame_ind = np.asscalar(frame_inds[-1])  # islice below doesn't take np.int64
-    im_examplars =  \
-            (itertools.islice(util.grab_frame(args.input_filename), None, last_frame_ind+1))
-    im_examplars = (im for frame_ind, im in enumerate(im_examplars) if frame_ind in frame_inds)
+    all_frames = util.grab_frame(args.input_filename)
+    im_examplars = util.index(all_frames, frame_inds)
 
-    num_subplot_rows = math.ceil(len(frame_inds)**.5)
+    num_subplot_rows = math.ceil(n_exemplars**.5)
     plt.figure()
     fig_title = "Examplar images at %s" % time.asctime(time.localtime())
     plt.gcf().canvas.set_window_title(fig_title)
@@ -185,6 +199,5 @@ def main():
 
 if __name__ == '__main__':
 
-    test()
-    #main()
-
+    #test()
+    main()
