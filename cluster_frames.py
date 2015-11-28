@@ -24,6 +24,27 @@ import SphericalKMeans
 import sklearn.cluster
 import sklearn.pipeline
 
+def save_video_with_mpl(im_displays, output_filename):
+    dpi = 100
+    FFMpegWriter = manimation.writers['ffmpeg']
+    metadata = dict(title='Movie Test', artist='Matplotlib',
+            comment='Movie support!')
+    writer = FFMpegWriter(fps=30, metadata=metadata)
+    fig = plt.figure()
+
+    logging.info('Saving to video %s', output_filename)
+    with writer.saving(fig, output_filename, dpi):
+
+        frame = next(im_displays)
+        ax = plt.imshow(frame, interpolation='nearest')
+        for fi, frame in enumerate(im_displays, 1):
+
+            util.put_text(frame, str(fi))
+            ax.set_data(frame)
+            writer.grab_frame()
+            logging.info('Grabbed frame %i', fi)
+
+    logging.info('Saved to video %s', output_filename)
 
 def cluster_frames():
 
@@ -122,18 +143,6 @@ def cluster_frames():
     ######################### Display atoms of dictionary #####################
 
     #def save_video_with_mpl(im_displays, output_fmt='output_data/%4i.jpg'):
-    #def save_video_with_mpl(im_displays, output_fmt='output_data/%4i.jpg'):
-    save_video = args.output_filename is not None
-    if save_video:
-        dpi = 100
-        FFMpegWriter = manimation.writers['ffmpeg']
-        metadata = dict(title='Movie Test', artist='Matplotlib',
-                comment='Movie support!')
-        writer = FFMpegWriter(fps=15, metadata=metadata)
-        fig = plt.figure()
-        writer.setup(fig, args.output_filename, dpi)
-
-        logging.info('Saving to video %s', args.output_filename)
 
     frames = util.grab_frame(args.input_filename)
     patch_row_chunks = (
@@ -159,18 +168,13 @@ def cluster_frames():
 
             yield colored_segmentation
 
-    for fi, frame in enumerate(im_displays()):
-        if fi > 10: break
+    frames = itertools.islice(im_displays(), 5)
+    save_video = args.output_filename is not None
+    if save_video:
+        save_video_with_mpl(frames, args.output_filename)
 
-        util.put_text(frame, str(fi))
-        if fi == 0:
-            ax = plt.imshow(frame, interpolation='nearest')
-        else:
-            ax.set_data(frame)
-        if save_video:
-            writer.grab_frame()
-        print(fi)
-        """
+    """
+    for fi, frame in enumerate(im_displays()):
         cv2.imshow(WIN, frame)
         key = cv2.waitKey(30)
         if key == ESC:
@@ -186,13 +190,9 @@ def cluster_frames():
                 continue
             else:
                 break
-        """
+    """
 
     cv2.destroyAllWindows()
-    if save_video:
-        writer.finish()
-        logging.info('Saved to video %s', args.output_filename)
-
 
     return
 
