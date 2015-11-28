@@ -5,12 +5,17 @@ import cv2
 import math
 import util
 import logging
-import matplotlib.pyplot as plt
 import nms
 import random
 import argparse
 import scipy.stats
 import time
+import itertools
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import matplotlib.animation as manimation
 
 import CoatesScaler
 import ZCA
@@ -22,11 +27,17 @@ import sklearn.pipeline
 
 def cluster_frames():
 
+    seed = 0
+    np.random.seed(seed)
+
     parser = argparse.ArgumentParser()
+    parser.add_argument('input_filename')
     parser.add_argument("data_proportion", nargs='?', type=float, default=1.,
             help="Proportion of full dataset to be used")
     parser.add_argument("--log", type=str, default='INFO',
             help="Logging setting (e.g., INFO, DEBUG)")
+    parser.add_argument('-o', '--output_filename',
+        help='Filename of video to be saved (default: does not save)')
     args = parser.parse_args()
 
     # Setting logging parameters
@@ -35,12 +46,13 @@ def cluster_frames():
         raise ValueError('Invalid log level: %s' % loglevel)
     logging.basicConfig(level=numeric_level, format='%(asctime)s %(message)s')
 
-    filenames = ['data/' + str(i) + '.png' for i in range(5)];
-    logging.info('Loading %i images... ', len(filenames))
+    sample_inds = [212, 699, 988, 1105, 2190, 2318]
+    logging.info('Loading %i images... ', len(sample_inds))
 
     # Load data
     d = 6  # size of patch
-    im_originals = [cv2.imread(filename) for filename in filenames]
+    all_frames = util.grab_frame(args.input_filename)
+    im_originals = list(util.index(all_frames, sample_inds))
     im_height, im_width = im_originals[0].shape[:2]
     all_patch_rows =  np.array(list(
             patch.ravel()
@@ -68,12 +80,12 @@ def cluster_frames():
             {'whiten':True, 'copy':True}
             )
     zca = (ZCA.ZCA, {'regularization': .1})
+    n_clusters = 100
     mbkmeans = (sklearn.cluster.MiniBatchKMeans,
             {
-                'n_clusters': 100,
+                'n_clusters': n_clusters,
                 'batch_size': 3000,
             })
-    n_clusters = 100
     skmeans = (SphericalKMeans.SphericalKMeans,
             {
                 'n_clusters': n_clusters,
@@ -82,13 +94,14 @@ def cluster_frames():
     kmeans = (sklearn.cluster.KMeans,
             {
                 'n_clusters': n_clusters,
+                #'random_state': np.random.RandomState,
                 #'n_jobs': -1,
-                'n_init': 1,
-                'max_iter': 10,
+                #'n_init': 1,
+                #'max_iter': 10,
             })
 
     # Define pipeline
-    steps = [coates_scaler, zca, skmeans]
+    steps = [coates_scaler, zca, kmeans]
     pipeline = sklearn.pipeline.make_pipeline(
             *[fun(**kwargs) for fun, kwargs in steps])
 
@@ -96,6 +109,7 @@ def cluster_frames():
     whitener = pipeline.steps[1][1]  # second step
     dic = pipeline.steps[-1][1]  # last step
 
+    steps = [(obj.__class__, obj.get_params()) for name, obj in pipeline.steps]
     util.print_steps(steps)
 
 
@@ -107,31 +121,33 @@ def cluster_frames():
 
     ######################### Display atoms of dictionary #####################
 
-    frames = util.grab_frame('data/infil.mp4')
+    #def save_video_with_mpl(im_displays, output_fmt='output_data/%4i.jpg'):
+    #def save_video_with_mpl(im_displays, output_fmt='output_data/%4i.jpg'):
+    save_video = args.output_filename is not None
+    if save_video:
+        dpi = 100
+        FFMpegWriter = manimation.writers['ffmpeg']
+        metadata = dict(title='Movie Test', artist='Matplotlib',
+                comment='Movie support!')
+        writer = FFMpegWriter(fps=15, metadata=metadata)
+        fig = plt.figure()
+        writer.setup(fig, args.output_filename, dpi)
+
+        logging.info('Saving to video %s', args.output_filename)
+
+    frames = util.grab_frame(args.input_filename)
     patch_row_chunks = (
             np.array(list(
             patch.ravel()
             for patch in util.yield_windows(im, (d, d), (1, 1))))
             for im in frames)
 
-    do_equalize = False
-    if do_equalize:
-        # Define histogram equalization based on training data
-        logging.info('Computing histogram equalizer...')
-        counts, bins = np.histogram(pipeline.predict(all_patch_rows), range(n_clusters + 1))
-        cumhist = np.cumsum(counts)
-        equalize = lambda x: cumhist[x] / cumhist[-1]
-        logging.info('done.')
-
-    def im_displays(do_equalize=False):
+    def im_displays():
         for patch_rows in patch_row_chunks:
             y = pipeline.predict(patch_rows)
 
             # Map to [0, 1) so that imshow scales across entire colormap spectrum
-            if do_equalize:
-                y = equalize(y)
-            else:
-                y = y / n_clusters
+            y = y / n_clusters
 
             newshape = (im_height - d + 1, im_width - d + 1, )
             segmentation = np.reshape(y, newshape)
@@ -143,42 +159,18 @@ def cluster_frames():
 
             yield colored_segmentation
 
-
-    """
-    y = pipeline.predict(all_patch_rows)
-
-    # To consistently get similar clustering labels across runs,
-    # we arrange clusters such that lower cluster indices have higher counts
-    logging.info('Sorting cluster label by cluster size...')
-    counts, bins = np.histogram(y, range(n_clusters + 1))
-    rank = scipy.stats.rankdata(counts, method='ordinal').astype(int) - 1
-    y = rank[y]
-    logging.info('done.')
-
-    # Now to get very distinct colors for each cluster, we do histogram
-    # equalization
-    logging.info('Equalizing histogram of segmentation image...')
-    counts, bins = np.histogram(y, range(n_clusters + 1))
-    cumhist = np.cumsum(counts)
-    y = cumhist[y] / cumhist[-1]
-    logging.info('done.')
-
-    for i, segmentation in enumerate(segmentations, 1):
-
-        plt.figure();
-        fig_title = 'im ' + str(i) + " " + time.asctime(time.localtime())
-        plt.gcf().canvas.set_window_title(fig_title)
-        plt.imshow(segmentation, cmap=plt.cm.Set1, interpolation='nearest')
-    
-    plt.show()
-    """
-
-    WIN = 'Output'
-    ESC = 27
-    SPACEBAR = 32
-    for fi, frame in enumerate(im_displays(do_equalize=do_equalize)):
+    for fi, frame in enumerate(im_displays()):
+        if fi > 10: break
 
         util.put_text(frame, str(fi))
+        if fi == 0:
+            ax = plt.imshow(frame, interpolation='nearest')
+        else:
+            ax.set_data(frame)
+        if save_video:
+            writer.grab_frame()
+        print(fi)
+        """
         cv2.imshow(WIN, frame)
         key = cv2.waitKey(30)
         if key == ESC:
@@ -194,8 +186,12 @@ def cluster_frames():
                 continue
             else:
                 break
+        """
 
     cv2.destroyAllWindows()
+    if save_video:
+        writer.finish()
+        logging.info('Saved to video %s', args.output_filename)
 
 
     return
