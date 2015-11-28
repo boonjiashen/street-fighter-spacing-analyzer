@@ -20,28 +20,32 @@ import sklearn.pipeline
 class FrameExemplifier():
 
     def __init__(self, num_examplars = 25):
-        self.num_examplars = num_examplars
         kmeans = (sklearn.cluster.KMeans,
                 {
-                    'n_clusters': self.num_examplars,
+                    'n_clusters': num_examplars,
                     #'n_jobs': -1,
                     'n_init': 10,
                     'max_iter': 100,
                 })
 
-        steps = [kmeans]
+        steps = [(kmeans)]
         self.pipeline = sklearn.pipeline.make_pipeline(
                 *[fun(**kwargs) for fun, kwargs in steps])
 
-        util.print_steps(steps)
-
-    def im_BGR_to_features(self, im_BGR):
+    def im_BGR_to_features(self, im_BGR, n_bins=10):
         im_HSV = cv2.cvtColor(im_BGR, cv2.COLOR_BGR2HSV)
         counts, bins = np.histogram(im_HSV, bins=45, range=(0, 180.))
 
         return counts, bins
 
-    def from_BGRs(self, im_BGRs):
+    def im_BGRs_to_features(self, im_BGRs, n_bins=10):
+        X = np.vstack(self.im_BGR_to_features(im, n_bins)[0] for im in im_BGRs)
+
+        logging.info('Loaded histograms')
+
+        return X
+
+    def from_BGRs(self, im_BGRs, n_bins=10):
         """Returns the indices of the examplar of an iterator of BGR images
 
         Returns a n_examplars length array where each element is in [0, n)
@@ -49,11 +53,7 @@ class FrameExemplifier():
         `n` length of im_BGRs
         """
 
-        X = np.vstack(self.im_BGR_to_features(im)[0] for im in im_BGRs)
-
-        logging.info('Loaded histograms')
-
-        return self.from_features(X)
+        return self.from_features(self.im_BGRs_to_features(im_BGRs, n_bins))
 
     def from_features(self, X):
         """Returns the indices of the examplar of dataset X
@@ -66,6 +66,11 @@ class FrameExemplifier():
     
         ### TRAIN PIPELINE ###
 
+        steps = [(obj.__class__, obj.get_params()) for name, obj in self.pipeline.steps]
+        util.print_steps(steps)
+
+        X = X.astype(float)
+
         logging.info('Training model...')
         self.pipeline.fit(X)
         logging.info('done.')
@@ -76,7 +81,8 @@ class FrameExemplifier():
         cluster_inds = self.pipeline.predict(X)
         cluster_space = self.pipeline.transform(X)
         best_X_inds = []
-        for cluster_ind in range(self.num_examplars):
+        n_clusters = self.pipeline.named_steps['kmeans'].n_clusters
+        for cluster_ind in range(n_clusters):
             mask = cluster_inds == cluster_ind
             best_X_ind = np.flatnonzero(mask)[np.argmin(cluster_space[mask, cluster_ind])]
             best_X_inds.append(best_X_ind)
@@ -135,7 +141,7 @@ def main():
     exemplifier = FrameExemplifier(n_exemplars)
 
     # Load data
-    start, stop, step = 0, 2700, 1
+    start, stop, step = 0, 700, 1
     #start, stop, step = None, None, None
     logging.info('Loading from %s (start frame=%s, end frame=%s, increment=%s)',
         args.input_filename, *map(str, [start, stop, step]))
@@ -143,7 +149,25 @@ def main():
     all_frames = util.grab_frame(args.input_filename)
     frame_sample = (util.index(all_frames, sample_inds))
 
-    best_X_inds = exemplifier.from_BGRs(frame_sample)
+        #im_HSV = cv2.cvtColor(im_BGR, cv2.COLOR_BGR2HSV)
+        #counts, bins = np.histogram(im_HSV, bins=45, range=(0, 180.))
+
+    X = exemplifier.im_BGRs_to_features(frame_sample)
+    scores = []
+    n_exemplars_list = np.linspace(3, 50, 10, dtype=int)
+    for n_exemplars in n_exemplars_list:
+        kmeans_obj = exemplifier.pipeline.steps[-1][-1]
+        kmeans_obj.n_clusters = n_exemplars
+
+        best_X_inds = exemplifier.from_features(X)
+        score = exemplifier.pipeline.score(X)
+
+        scores.append(score)
+
+    plt.figure()
+    plt.plot(n_exemplars_list, scores)
+    plt.show()
+    return
 
     # Map index in frame_sample to index in the input video
     frame_inds = np.array(sample_inds)[best_X_inds]
