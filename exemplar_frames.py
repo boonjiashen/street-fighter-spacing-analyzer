@@ -26,7 +26,7 @@ class FrameExemplifier():
                     'n_clusters': self.num_examplars,
                     #'n_jobs': -1,
                     'n_init': 10,
-                    'max_iter': 10,
+                    'max_iter': 100,
                 })
 
         steps = [kmeans]
@@ -35,6 +35,11 @@ class FrameExemplifier():
 
         util.print_steps(steps)
 
+    def im_BGR_to_features(self, im_BGR):
+        im_HSV = cv2.cvtColor(im_BGR, cv2.COLOR_BGR2HSV)
+        counts, bins = np.histogram(im_HSV, bins=45, range=(0, 180.))
+
+        return counts, bins
 
     def from_BGRs(self, im_BGRs):
         """Returns the indices of the examplar of an iterator of BGR images
@@ -44,11 +49,7 @@ class FrameExemplifier():
         `n` length of im_BGRs
         """
 
-        im_HSVs = (cv2.cvtColor(im_original, cv2.COLOR_BGR2HSV)
-                for im_original in im_BGRs)
-        Hhistograms = (np.histogram(im[:,:,0], bins=20, range=(0, 180.))[0]
-                for im in im_HSVs)
-        X = np.vstack(Hhistograms)
+        X = np.vstack(self.im_BGR_to_features(im)[0] for im in im_BGRs)
 
         logging.info('Loaded histograms')
 
@@ -149,27 +150,29 @@ def main():
     #frame_inds = np.linspace(0, 2700, 25, dtype=int)
     frame_inds.sort()
     all_frames = util.grab_frame(args.input_filename)
-    im_examplars = util.index(all_frames, frame_inds)
+    im_exemplars = list(util.index(all_frames, frame_inds))
+
+    # Display exemplar histograms in one plot
+    plt.figure()
+    fig_title = "Examplar histograms at %s" % time.asctime(time.localtime())
+    for im_exemplar in im_exemplars:
+        counts, bins = exemplifier.im_BGR_to_features(im_exemplar)
+        plt.plot(bins[:-1], counts)
 
     num_subplot_rows = math.ceil(n_exemplars**.5)
     plt.figure()
     fig_title = "Examplar images at %s" % time.asctime(time.localtime())
     plt.gcf().canvas.set_window_title(fig_title)
-    for i, (frame_ind, im_examplar) in enumerate(zip(frame_inds, im_examplars)):
+    for i, (frame_ind, im_exemplar) in enumerate(zip(frame_inds, im_exemplars)):
         plt.subplot(num_subplot_rows, num_subplot_rows, i + 1)
-        plt.imshow(im_examplar[:,:,::-1], interpolation='nearest')
+        plt.imshow(im_exemplar[:,:,::-1], interpolation='nearest')
         plt.xticks(())  # remove ticks
         plt.yticks(())
         plt.title("Frame #%i" % (frame_ind))
     plt.tight_layout()
     plt.show()
 
-    """
-    for frame_ind, im_examplar in zip(frame_inds, im_examplars):
-        plt.imshow(im_examplar[:,:,::-1])
-        """
-
-    logging.info('Examplar frame indices are %s', str(frame_inds))
+    logging.info('Exemplar frame indices are %s', str(frame_inds))
     return
 
     ### DISPLAY OUTPUT ###
