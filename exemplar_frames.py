@@ -141,7 +141,7 @@ def main():
     exemplifier = FrameExemplifier(n_exemplars)
 
     # Load data
-    start, stop, step = 0, 700, 1
+    start, stop, step = 0, 2700, 1
     #start, stop, step = None, None, None
     logging.info('Loading from %s (start frame=%s, end frame=%s, increment=%s)',
         args.input_filename, *map(str, [start, stop, step]))
@@ -149,29 +149,43 @@ def main():
     all_frames = util.grab_frame(args.input_filename)
     frame_sample = (util.index(all_frames, sample_inds))
 
-        #im_HSV = cv2.cvtColor(im_BGR, cv2.COLOR_BGR2HSV)
-        #counts, bins = np.histogram(im_HSV, bins=45, range=(0, 180.))
+    # Flatten H channel of every item in sample
+    H_rows = np.vstack(
+            cv2.cvtColor(im, cv2.COLOR_BGR2HSV)[:,:,0].ravel()
+            for im in frame_sample)
 
-    X = exemplifier.im_BGRs_to_features(frame_sample)
-    scores = []
     n_exemplars_list = np.linspace(3, 50, 10, dtype=int)
-    for n_exemplars in n_exemplars_list:
-        kmeans_obj = exemplifier.pipeline.steps[-1][-1]
-        kmeans_obj.n_clusters = n_exemplars
+    n_bins_list = np.linspace(10, 45, 5, dtype=int)
+    scores = np.zeros((len(n_bins_list), len(n_exemplars_list), ))
 
-        best_X_inds = exemplifier.from_features(X)
-        score = exemplifier.pipeline.score(X)
+    for j, n_bins in enumerate(n_bins_list):
+        X = np.vstack(
+                np.histogram(H, bins=n_bins, range=(0, 180.))[0]
+                for H in H_rows)
+        for i, n_exemplars in enumerate(n_exemplars_list):
+            kmeans_obj = exemplifier.pipeline.steps[-1][-1]
+            kmeans_obj.n_clusters = n_exemplars
 
-        scores.append(score)
+            best_X_inds = exemplifier.from_features(X)
+            score = exemplifier.pipeline.score(X)
+            scores[j, i] = score
 
     plt.figure()
-    plt.plot(n_exemplars_list, scores)
+    for n_bins, score_list in zip(n_bins_list, scores):
+        plt.plot(n_exemplars_list, score_list, label='nbins=%i'%(n_bins))
+    #plt.imshow(scores, interpolation='nearest')
+    plt.legend(loc='best')
+    plt.xlabel('Number of clusters')
+    plt.ylabel('KMeans score')
+    plt.title('KMeans score versus #clusters and #bins')
     plt.show()
-    return
+    return scores
+
+    best_X_inds = exemplifier.from_features(X)
 
     # Map index in frame_sample to index in the input video
     frame_inds = np.array(sample_inds)[best_X_inds]
-    #frame_inds = np.linspace(0, 2700, 25, dtype=int)
+    #frame_inds = np.linspace(0, 700, 25, dtype=int)
     frame_inds.sort()
     all_frames = util.grab_frame(args.input_filename)
     im_exemplars = list(util.index(all_frames, frame_inds))
@@ -227,4 +241,4 @@ def main():
 if __name__ == '__main__':
 
     #test()
-    main()
+    scores = main()
