@@ -19,7 +19,7 @@ training stage is a lot easier. The match is [Infiltration (Gouken) vs Tokido
     >> # supervised learning with HoG/SVM
     >> python3 train_SVM.py data/my_video.mp4 data/Infiltration_Gouken_vs_Tokido_Gouki.txt
     >> # unsupervised learning with patch-wise KMeans (trained on 3% of patches from 6 handpicked frames)
-    >> python3 train_SVM.py data/my_video.mp4 0.03
+    >> python3 cluster_frames.py data/my_video.mp4 0.03
 
 #Results
 
