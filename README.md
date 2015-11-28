@@ -22,3 +22,5 @@ training stage is a lot easier. The match is [Infiltration (Gouken) vs Tokido
 
 [![replay](http://img.youtube.com/vi/37NeE0lTZc8/0.jpg)](https://www.youtube.com/watch?v=37NeE0lTZc8)  
 Date: Feb 18 2015
+
+<img src="output_data/elbow.png" alt="elbow" style="width: 200px;"/>
