@@ -25,7 +25,7 @@ class FrameExemplifier():
                     'n_clusters': num_examplars,
                     #'n_jobs': -1,
                     'n_init': 10,
-                    'max_iter': 100,
+                    'max_iter': 300,
                 })
 
         steps = [(kmeans)]
@@ -137,7 +137,7 @@ def main():
         raise ValueError('Invalid log level: %s' % loglevel)
     logging.basicConfig(level=numeric_level, format='%(asctime)s %(message)s')
 
-    n_exemplars = 25
+    n_exemplars = 10
     exemplifier = FrameExemplifier(n_exemplars)
 
     # Load data
@@ -149,39 +149,8 @@ def main():
     all_frames = util.grab_frame(args.input_filename)
     frame_sample = (util.index(all_frames, sample_inds))
 
-    # Flatten H channel of every item in sample
-    H_rows = np.vstack(
-            cv2.cvtColor(im, cv2.COLOR_BGR2HSV)[:,:,0].ravel()
-            for im in frame_sample)
-
-    n_exemplars_list = np.linspace(3, 50, 10, dtype=int)
-    n_bins_list = np.linspace(10, 45, 5, dtype=int)
-    scores = np.zeros((len(n_bins_list), len(n_exemplars_list), ))
-
-    for j, n_bins in enumerate(n_bins_list):
-        X = np.vstack(
-                np.histogram(H, bins=n_bins, range=(0, 180.))[0]
-                for H in H_rows)
-        for i, n_exemplars in enumerate(n_exemplars_list):
-            kmeans_obj = exemplifier.pipeline.steps[-1][-1]
-            kmeans_obj.n_clusters = n_exemplars
-
-            best_X_inds = exemplifier.from_features(X)
-            score = exemplifier.pipeline.score(X)
-            scores[j, i] = score
-
-    plt.figure()
-    for n_bins, score_list in zip(n_bins_list, scores):
-        plt.plot(n_exemplars_list, score_list, label='nbins=%i'%(n_bins))
-    #plt.imshow(scores, interpolation='nearest')
-    plt.legend(loc='best')
-    plt.xlabel('Number of clusters')
-    plt.ylabel('KMeans score')
-    plt.title('KMeans score versus #clusters and #bins')
-    plt.show()
-    return scores
-
-    best_X_inds = exemplifier.from_features(X)
+    n_bins = 25
+    best_X_inds = exemplifier.from_BGRs(frame_sample, n_bins=n_bins)
 
     # Map index in frame_sample to index in the input video
     frame_inds = np.array(sample_inds)[best_X_inds]
