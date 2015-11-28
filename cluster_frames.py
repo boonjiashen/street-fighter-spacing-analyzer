@@ -24,7 +24,50 @@ import SphericalKMeans
 import sklearn.cluster
 import sklearn.pipeline
 
+def display_frames(im_displays):
+    """Displays a generator `im_displays` as a video at runtime
+
+    Press ESC to exit or spacebar to pause/unpause
+    """
+
+    WIN = 'Output'
+    ESC = 27
+    SPACEBAR = 32
+    for fi, frame in enumerate(im_displays):
+        util.put_text(frame, str(fi))
+        cv2.imshow(WIN, frame)
+        key = cv2.waitKey(30)
+        if key == ESC:
+            break
+
+        # Spacebar pauses video, after while ESC exits video or spacebar
+        # resumes. Other keystrokes are ignored during pause.
+        elif key == SPACEBAR:
+            key = cv2.waitKey()
+            while key != SPACEBAR and key != ESC:
+                key = cv2.waitKey()
+            if key == SPACEBAR:
+                continue
+            else:
+                break
+    cv2.destroyAllWindows()
+            
+
+def write_frames_to_disk(im_displays, output_fmt='output_data/%06i.jpg'):
+    """Write frames to disk for inspection or conversion to a movie later
+    """
+    for fi, frame in enumerate(im_displays):
+        cv2.imwrite(output_fmt % fi, frame)
+        logging.info('Grabbed frame %i', fi)
+
+
 def save_video_with_mpl(im_displays, output_filename):
+    """Save a generator `im_displays` as video using Matplotlib.
+
+    Using MPL instead of Opencv VideoWriter because my OpenCV somehow doesn't
+    interface with FFMPEG
+    """
+
     dpi = 100
     FFMpegWriter = manimation.writers['ffmpeg']
     metadata = dict(title='Movie Test', artist='Matplotlib',
@@ -45,6 +88,7 @@ def save_video_with_mpl(im_displays, output_filename):
             logging.info('Grabbed frame %i', fi)
 
     logging.info('Saved to video %s', output_filename)
+
 
 def cluster_frames():
 
@@ -142,8 +186,6 @@ def cluster_frames():
 
     ######################### Display atoms of dictionary #####################
 
-    #def save_video_with_mpl(im_displays, output_fmt='output_data/%4i.jpg'):
-
     frames = util.grab_frame(args.input_filename)
     patch_row_chunks = (
             np.array(list(
@@ -168,31 +210,13 @@ def cluster_frames():
 
             yield colored_segmentation
 
-    frames = itertools.islice(im_displays(), 5)
+    #frames = itertools.islice(im_displays(), 5)
+    frames = im_displays()
     save_video = args.output_filename is not None
     if save_video:
-        save_video_with_mpl(frames, args.output_filename)
-
-    """
-    for fi, frame in enumerate(im_displays()):
-        cv2.imshow(WIN, frame)
-        key = cv2.waitKey(30)
-        if key == ESC:
-            break
-
-        # Spacebar pauses video, after while ESC exits video or spacebar
-        # resumes. Other keystrokes are ignored during pause.
-        elif key == SPACEBAR:
-            key = cv2.waitKey()
-            while key != SPACEBAR and key != ESC:
-                key = cv2.waitKey()
-            if key == SPACEBAR:
-                continue
-            else:
-                break
-    """
-
-    cv2.destroyAllWindows()
+        write_frames_to_disk(frames, args.output_filename)
+    else:
+        display_frames(frames)
 
     return
 
